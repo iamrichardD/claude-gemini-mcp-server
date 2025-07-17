@@ -94,7 +94,7 @@ class ClaudeGeminiMCPServer {
                                 default: 3
                             }
                         },
-                        required: ['initial_prompt', 'file_path']
+                        required: ['initial_prompt']  // Only initial_prompt is required
                     }
                 },
                 {
@@ -226,6 +226,54 @@ Focus on actionable feedback that can be implemented.`;
         this.sessionContext.iterationCount = 0;
         this.sessionContext.currentFile = filePath;
 
+        // If no file path provided, this is a general question
+        if (!filePath) {
+            results.push("=== GENERAL INQUIRY (NO FILE SPECIFIED) ===");
+            results.push("\n🤔 CLAUDE - RESPONDING TO GENERAL QUESTION:");
+
+            try {
+                const claudeResult = await this.claudeCodeImplement(currentPrompt, null);
+                results.push(claudeResult.content[0].text);
+
+                results.push("\n🧭 GEMINI - PROVIDING ADDITIONAL PERSPECTIVE:");
+                const geminiPrompt = `Provide additional insights or corrections to this response about: ${initialPrompt}
+
+Claude's response:
+${this.sessionContext.lastClaudeOutput}
+
+Please add any missing information, corrections, or alternative perspectives.`;
+
+                const command = `gemini "${geminiPrompt}"`;
+                let result;
+                try {
+                    result = await execAsync(command, {
+                        cwd: this.workingDirectory,
+                        maxBuffer: 1024 * 1024 * 10,
+                        timeout: 120000
+                    });
+                } catch (execError) {
+                    const stdout = execError.stdout || '';
+                    const stderr = execError.stderr || execError.message;
+                    result = { stdout, stderr };
+                }
+
+                results.push(`Gemini Additional Insights:\n\n${result.stdout}${result.stderr ? `\n\nErrors/Warnings:\n${result.stderr}` : ''}`);
+
+            } catch (error) {
+                results.push(`Error during general inquiry: ${error.message}`);
+            }
+
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: `General Inquiry Complete:\n${results.join('\n')}`
+                    }
+                ]
+            };
+        }
+
+        // Original file-based pair programming logic continues here...
         for (let i = 0; i < maxIterations; i++) {
             this.sessionContext.iterationCount = i + 1;
 
