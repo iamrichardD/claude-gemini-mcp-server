@@ -151,7 +151,7 @@ class ClaudeGeminiMCPServer {
                 `${prompt} (working on file: ${filePath})` :
                 prompt;
 
-            const command = `claude -p "${fullPrompt}"`;
+            const command = `env -i PATH="${process.env.PATH}" HOME="${process.env.HOME}" claude -p "${fullPrompt}"`;
             const { stdout, stderr } = await execAsync(command, {
                 cwd: this.workingDirectory,
                 maxBuffer: 1024 * 1024 * 10 // 10MB buffer
@@ -198,7 +198,7 @@ Please provide:
 
 Focus on actionable feedback that can be implemented.`;
 
-            const command = `gemini -p "${reviewPrompt}"`;
+            const command = `env -i PATH="${process.env.PATH}" HOME="${process.env.HOME}" gemini -p "${reviewPrompt}"`;
             const { stdout, stderr } = await execAsync(command, {
                 cwd: this.workingDirectory,
                 maxBuffer: 1024 * 1024 * 10 // 10MB buffer
@@ -243,7 +243,7 @@ ${this.sessionContext.lastClaudeOutput}
 
 Please add any missing information, corrections, or alternative perspectives.`;
 
-                const command = `gemini -p "${geminiPrompt}"`;
+                const command = `env -i PATH="${process.env.PATH}" HOME="${process.env.HOME}" gemini -p "${geminiPrompt}"`;
                 let result;
                 try {
                     result = await execAsync(command, {

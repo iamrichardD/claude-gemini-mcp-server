@@ -220,17 +220,34 @@ npm install @modelcontextprotocol/sdk
 claude -p "Test prompt"
 gemini -p "Test prompt"
 
+# Test with environment isolation (if running from within Claude)
+env -i PATH="$PATH" HOME="$HOME" claude -p "Test prompt"
+env -i PATH="$PATH" HOME="$HOME" gemini -p "Test prompt"
+
 # Both should return responses and exit cleanly
 ```
 
-**Pair Programming Cycle Gets Canceled**
+**Pair Programming Cycle Gets Cancelled**
 ```bash
 # Ensure both CLI tools work non-interactively
 claude -p "What is Pine Script?"
 gemini -p "What is Pine Script?"
 
+# If running from within Claude CLI, test with environment isolation
+env -i PATH="$PATH" HOME="$PATH" claude -p "What is Pine Script?"
+
 # Check MCP server logs for hanging processes
 ps aux | grep -E "(claude-gemini-mcp|claude|gemini)"
+```
+
+**Subprocess Detection Issues**
+```bash
+# Claude CLI may detect recursive execution and hang
+# The MCP server uses environment isolation to prevent this:
+# env -i PATH="..." HOME="..." claude -p "prompt"
+
+# If issues persist, verify the isolation commands work manually
+env -i PATH="$PATH" HOME="$HOME" claude -p "test"
 ```
 
 **Gemini CLI Not Found**

@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.4] - 2025-07-17
+
+### Fixed
+- **Critical Fix**: Resolved CLI subprocess hanging when called from within Claude CLI environment
+- Added environment isolation using `env -i` to prevent recursive execution detection
+- Fixed both `claude_implement` and `gemini_code_review` tools hanging/timeout issues
+- Enabled reliable `pair_programming_cycle` execution without subprocess conflicts
+
+### Changed
+- Command execution now uses environment isolation:
+    - `claude -p "prompt"` → `env -i PATH="..." HOME="..." claude -p "prompt"`
+    - `gemini -p "prompt"` → `env -i PATH="..." HOME="..." gemini -p "prompt"`
+- Reduced timeout to 30 seconds since commands now execute immediately
+
+### Technical Details
+- Claude CLI detects when running from within another Claude process and waits indefinitely
+- Environment isolation (`env -i`) prevents this detection while preserving necessary PATH and HOME
+- This fix enables the MCP server to reliably execute CLI subprocesses
+
 ## [1.0.3] - 2025-07-17
 
 ### Fixed
