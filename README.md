@@ -9,7 +9,7 @@ This MCP server orchestrates a collaborative workflow where:
 - **Gemini CLI** acts as the **Navigator** (reviews and provides feedback)
 - **Automated iteration** until code meets quality standards
 
-Perfect for Pine Script development, trading strategies, and any collaborative coding workflow.
+Perfect for iterative software development, or any collaborative coding workflow.
 
 ## 🚀 Quick Start
 
@@ -214,6 +214,25 @@ npx claude-gemini-mcp
 npm install @modelcontextprotocol/sdk
 ```
 
+**CLI Tools Hanging or Timing Out**
+```bash
+# Test CLI tools with non-interactive flags
+claude -p "Test prompt"
+gemini -p "Test prompt"
+
+# Both should return responses and exit cleanly
+```
+
+**Pair Programming Cycle Gets Canceled**
+```bash
+# Ensure both CLI tools work non-interactively
+claude -p "What is Pine Script?"
+gemini -p "What is Pine Script?"
+
+# Check MCP server logs for hanging processes
+ps aux | grep -E "(claude-gemini-mcp|claude|gemini)"
+```
+
 **Gemini CLI Not Found**
 ```bash
 # Verify Gemini CLI installation
@@ -243,6 +262,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 📊 Use Cases
 
+- **Pine Script Development**: Trading indicators and strategies
 - **Code Review Automation**: Continuous quality improvement
 - **Educational**: Learn XP pair programming with AI
 - **Rapid Prototyping**: Fast iteration with dual AI feedback

@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.3] - 2025-07-17
+
+### Fixed
+- **Critical Fix**: Added `-p` flag to both Claude and Gemini CLI calls for non-interactive execution
+- Resolved hanging/timeout issues when MCP server executes CLI commands as subprocesses
+- Fixed `pair_programming_cycle` tool execution that was being cancelled due to hanging processes
+- Both `claude_implement` and `gemini_code_review` tools now work reliably
+
+### Changed
+- Command execution: `claude "prompt"` → `claude -p "prompt"`
+- Command execution: `gemini "prompt"` → `gemini -p "prompt"`
+- Increased timeout to 60 seconds for non-interactive CLI execution
+- Enhanced error handling and debug logging
+
+### Technical Details
+- Interactive CLI tools start sessions waiting for user input when called without flags
+- Non-interactive mode (`-p` flag) processes prompt and exits cleanly
+- This fix enables reliable subprocess execution from MCP server
+
 ## [1.0.1] - 2025-07-17
 
 ### Fixed
