@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gemini:*)",
+      "WebFetch(domain:gemini.google.com)"
+    ],
+    "deny": []
+  }
+}
