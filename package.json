@@ -1,6 +1,6 @@
 {
   "name": "@iamrichardd/claude-gemini-mcp-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP Server for Claude-Gemini pair programming workflow",
   "main": "server.js",
   "type": "module",
@@ -14,23 +14,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iamrichardd/claude-gemini-mcp-server.git"
+    "url": "git@github.com:iamrichardd/claude-gemini-mcp-server.git"
   },
+  "bugs": {
+    "url": "https://github.com/iamrichardd/claude-gemini-mcp-server/issues"
+  },
+  "homepage": "https://github.com/iamrichardd/claude-gemini-mcp-server#readme",
   "keywords": [
     "mcp",
     "claude",
     "gemini",
     "pair-programming",
-    "pinescript",
-    "trading",
-    "indicators"
+    "ai-collaboration"
   ],
   "author": "Richard Delgado <https://github.com/iamrichardD>",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/iamrichardd/claude-gemini-mcp-server/issues"
-  },
-  "homepage": "https://github.com/iamrichardd/claude-gemini-mcp-server#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
   },

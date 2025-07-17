@@ -16,7 +16,7 @@ Perfect for Pine Script development, trading strategies, and any collaborative c
 ### Prerequisites
 
 - Node.js v18+
-- Claude Code CLI installed and configured
+- Claude CLI installed and configured
 - Gemini CLI installed and configured
 - Ubuntu Linux (tested environment)
 
@@ -26,17 +26,30 @@ Perfect for Pine Script development, trading strategies, and any collaborative c
 # Install as project dependency
 npm install --save-dev github:iamrichardd/claude-gemini-mcp-server
 
-# Configure Claude Desktop
-npx claude-gemini-mcp install-config
+# Add MCP server to Claude CLI
+claude mcp add -s project claude-gemini-pair-programmer npx claude-gemini-mcp
 
-# Restart Claude Desktop
+# Initialize and approve the MCP server
+claude init
+
+# Choose option 1: "Use this and all future MCP servers in this project"
+```
+
+### Verify Installation
+
+```bash
+# Check if MCP server is registered and connected
+claude mcp list
+
+# Should show:
+# claude-gemini-pair-programmer    stdio    npx claude-gemini-mcp    ✓ connected
 ```
 
 ### Basic Usage
 
 #### Single Implementation
 ```
-Use claude_code_implement with prompt "Create RSI indicator" and file_path "./indicators/rsi.pine"
+Use claude_implement with prompt "Create RSI indicator" and file_path "./indicators/rsi.pine"
 ```
 
 #### Code Review Only
@@ -53,7 +66,7 @@ Use pair_programming_cycle with initial_prompt "Create comprehensive RSI+MACD tr
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `claude_code_implement` | Execute Claude Code CLI for implementation | `prompt`, `file_path` (optional) |
+| `claude_implement` | Execute Claude CLI for implementation | `prompt`, `file_path` (optional) |
 | `gemini_code_review` | Execute Gemini CLI for code review | `file_path`, `context` (optional) |
 | `pair_programming_cycle` | Full automated pair programming workflow | `initial_prompt`, `file_path`, `max_iterations` (default: 3) |
 | `get_session_context` | View current session state | None |
@@ -98,22 +111,49 @@ Much improved! Code looks good and follows Pine Script best practices.
 
 ## 🛠️ Configuration
 
-### Claude Desktop Configuration
+### Claude CLI MCP Setup
 
-The MCP server automatically configures Claude Desktop. Manual configuration:
+The MCP server integrates with Claude CLI using the `.mcp.json` configuration file:
+
+```bash
+# Add MCP server to your project
+claude mcp add -s project claude-gemini-pair-programmer npx claude-gemini-mcp
+
+# Alternative: Add with specific Node.js path if needed
+claude mcp add -s project claude-gemini-pair-programmer node ./node_modules/@iamrichardd/claude-gemini-mcp-server/server.js
+
+# Initialize and approve MCP servers
+claude init
+```
+
+### Manual Configuration (if needed)
+
+If automatic setup doesn't work, create `.mcp.json` manually:
 
 ```json
 {
   "mcpServers": {
     "claude-gemini-pair-programmer": {
-      "command": "node",
-      "args": ["/path/to/node_modules/@iamrichardd/claude-gemini-mcp-server/server.js"],
-      "env": {
-        "NODE_PATH": "/path/to/node_modules"
-      }
+      "command": "npx",
+      "args": ["claude-gemini-mcp"],
+      "transport": "stdio"
     }
   }
 }
+```
+
+### Troubleshooting MCP Setup
+
+```bash
+# Check MCP server status
+claude mcp list
+
+# Remove and re-add if needed
+claude mcp remove claude-gemini-pair-programmer
+claude mcp add -s project claude-gemini-pair-programmer npx claude-gemini-mcp
+
+# Test server manually
+npx claude-gemini-mcp
 ```
 
 ### Project-Specific Setup
@@ -138,11 +178,6 @@ npm install --save-dev github:iamrichardd/claude-gemini-mcp-server
 your-project/
 ├── node_modules/
 │   └── @iamrichardd/claude-gemini-mcp-server/
-├── indicators/
-│   ├── rsi.pine
-│   └── macd.pine
-├── strategies/
-│   └── momentum_strategy.pine
 ├── package.json
 └── README.md
 ```
@@ -157,16 +192,26 @@ your-project/
 npm list | grep claude-gemini-mcp-server
 
 # Reinstall configuration
-npx claude-gemini-mcp install-config
+claude mcp add -s project claude-gemini-pair-programmer npx claude-gemini-mcp
+claude init
 ```
 
-**Claude Code CLI Not Found**
+**Claude CLI Not Found**
 ```bash
-# Verify Claude Code CLI installation
-claude-code --version
+# Verify Claude CLI installation
+claude --version
 
 # Check PATH
 echo $PATH | grep claude
+```
+
+**MCP Server Failed to Start**
+```bash
+# Test server manually
+npx claude-gemini-mcp
+
+# Check for dependency issues
+npm install @modelcontextprotocol/sdk
 ```
 
 **Gemini CLI Not Found**
@@ -192,13 +237,12 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🔗 Related Tools
 
-- [Claude Code CLI](https://docs.anthropic.com) - AI-powered code assistant
-- [Gemini CLI](https://cloud.google.com/vertex-ai) - Google's AI CLI tool
+- [Claude CLI](https://docs.anthropic.com) - AI-powered code assistant
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) - Google's AI CLI tool
 - [Model Context Protocol](https://modelcontextprotocol.io) - Standard for AI tool integration
 
 ## 📊 Use Cases
 
-- **Pine Script Development**: Trading indicators and strategies
 - **Code Review Automation**: Continuous quality improvement
 - **Educational**: Learn XP pair programming with AI
 - **Rapid Prototyping**: Fast iteration with dual AI feedback

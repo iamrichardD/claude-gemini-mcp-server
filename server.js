@@ -6,8 +6,8 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
-import path from 'path';
 
+// Properly typed exec function
 const execAsync = promisify(exec);
 
 class ClaudeGeminiMCPServer {
@@ -39,14 +39,14 @@ class ClaudeGeminiMCPServer {
         this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
             tools: [
                 {
-                    name: 'claude_code_implement',
-                    description: 'Execute Claude Code CLI to implement or modify Pine Script code',
+                    name: 'claude_implement',
+                    description: 'Execute Claude CLI to implement or modify Pine Script code',
                     inputSchema: {
                         type: 'object',
                         properties: {
                             prompt: {
                                 type: 'string',
-                                description: 'The implementation prompt for Claude Code CLI'
+                                description: 'The implementation prompt for Claude CLI'
                             },
                             file_path: {
                                 type: 'string',
@@ -113,7 +113,7 @@ class ClaudeGeminiMCPServer {
 
             try {
                 switch (name) {
-                    case 'claude_code_implement':
+                    case 'claude_implement':
                         return await this.claudeCodeImplement(args.prompt, args.file_path);
 
                     case 'gemini_code_review':
@@ -130,7 +130,7 @@ class ClaudeGeminiMCPServer {
                         return await this.getSessionContext();
 
                     default:
-                        throw new Error(`Unknown tool: ${name}`);
+                        new Error(`Unknown tool: ${name}`);
                 }
             } catch (error) {
                 return {
@@ -151,7 +151,7 @@ class ClaudeGeminiMCPServer {
                 `${prompt} (working on file: ${filePath})` :
                 prompt;
 
-            const command = `claude-code "${fullPrompt}"`;
+            const command = `claude "${fullPrompt}"`;
             const { stdout, stderr } = await execAsync(command, {
                 cwd: this.workingDirectory,
                 maxBuffer: 1024 * 1024 * 10 // 10MB buffer
@@ -169,7 +169,7 @@ class ClaudeGeminiMCPServer {
                 ]
             };
         } catch (error) {
-            throw new Error(`Claude Code CLI error: ${error.message}`);
+            throw new Error(`Claude CLI error: ${error.message}`);
         }
     }
 
