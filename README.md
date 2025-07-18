@@ -1,37 +1,36 @@
-# Claude-Gemini MCP Server
+# Gemini Code Reviewer
 
-An MCP (Model Context Protocol) server that enables automated pair programming between Claude Code CLI and Gemini CLI, implementing eXtreme Programming (XP) pair programming patterns.
+A universal Model Context Protocol (MCP) server that provides AI-powered code review and analysis for **any programming language** using Google's Gemini CLI. Perfect for developers who want intelligent code feedback directly in their development workflow.
 
 ## 🎯 Purpose
 
-This MCP server orchestrates a collaborative workflow where:
-- **Claude Code CLI** acts as the **Driver** (implements code)
-- **Gemini CLI** acts as the **Navigator** (reviews and provides feedback)
-- **Automated iteration** until code meets quality standards
-
-Perfect for iterative software development, or any collaborative coding workflow.
+This MCP server acts as your AI-powered code reviewer, providing:
+- **Comprehensive Code Reviews** with severity ratings and actionable feedback
+- **Code Analysis & Explanation** for understanding complex logic
+- **Improvement Suggestions** tailored to your specific goals
+- **Architecture Validation** for design patterns and scalability
+- **Multi-Language Support** with language-specific best practices
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js v18+
-- Claude CLI installed and configured
-- Gemini CLI installed and configured
-- Ubuntu Linux (tested environment)
+- [Gemini CLI](https://github.com/google-gemini/gemini-cli) installed and configured
+- Claude Code CLI or Claude Desktop
+- Any Unix-like environment (Linux, macOS, WSL)
 
 ### Installation
 
 ```bash
 # Install as project dependency
-npm install --save-dev github:iamrichardd/claude-gemini-mcp-server
+npm install --save-dev github:iamrichardd/gemini-code-reviewer
 
 # Add MCP server to Claude CLI
-claude mcp add -s project claude-gemini-pair-programmer npx claude-gemini-mcp
+claude mcp add -s project gemini-code-reviewer npx gemini-code-reviewer
 
 # Initialize and approve the MCP server
 claude init
-
 # Choose option 1: "Use this and all future MCP servers in this project"
 ```
 
@@ -40,232 +39,230 @@ claude init
 ```bash
 # Check if MCP server is registered and connected
 claude mcp list
+# Should show: gemini-code-reviewer ✓ connected
 
-# Should show:
-# claude-gemini-pair-programmer    stdio    npx claude-gemini-mcp    ✓ connected
-```
-
-### Basic Usage
-
-#### Single Implementation
-```
-Use claude_implement with prompt "Create RSI indicator" and file_path "./indicators/rsi.pine"
-```
-
-#### Code Review Only
-```
-Use gemini_code_review with file_path "./strategy.pine" and context "Added MACD signals"
-```
-
-#### Full Pair Programming Cycle
-```
-Use pair_programming_cycle with initial_prompt "Create comprehensive RSI+MACD trading strategy" and file_path "./strategy.pine"
+# Test basic functionality
+claude "Use get_review_history"
 ```
 
 ## 📋 Available Tools
 
-| Tool | Description | Parameters |
-|------|-------------|------------|
-| `claude_implement` | Execute Claude CLI for implementation | `prompt`, `file_path` (optional) |
-| `gemini_code_review` | Execute Gemini CLI for code review | `file_path`, `context` (optional) |
-| `pair_programming_cycle` | Full automated pair programming workflow | `initial_prompt`, `file_path`, `max_iterations` (default: 3) |
-| `get_session_context` | View current session state | None |
+| Tool | Description | Best For |
+|------|-------------|----------|
+| `gemini_code_review` | Comprehensive code review with ratings and priorities | Code quality, bug detection, best practices |
+| `gemini_analyze_code` | Deep code analysis and explanation | Understanding complex code, optimization |
+| `gemini_suggest_improvements` | Specific improvement recommendations | Refactoring, performance, maintainability |
+| `gemini_validate_architecture` | Architecture and design pattern validation | System design, scalability, SOLID principles |
+| `get_review_history` | Session history and review tracking | Project overview, progress tracking |
 
-## 🔄 Pair Programming Workflow
+## 🌍 Supported Languages
 
-```mermaid
-graph TD
-    A[Initial Prompt] --> B[Claude Implements]
-    B --> C[Gemini Reviews]
-    C --> D{Code Approved?}
-    D -->|Yes| E[✅ Complete]
-    D -->|No| F[Generate Improvement Prompt]
-    F --> B
-    G[Max Iterations?] --> E
+**Auto-detected support for 30+ languages:**
+
+### Web Development
+- JavaScript, TypeScript, HTML, CSS, SCSS, Sass
+- React (JSX/TSX), Vue.js, Angular
+
+### Backend & Systems
+- Python, Java, C++, C, C#, Go, Rust
+- PHP, Ruby, Node.js, Kotlin, Swift
+
+### Data & Analytics
+- R, SQL, MATLAB, Python (NumPy/Pandas)
+
+### Mobile Development
+- Swift (iOS), Kotlin (Android), Dart (Flutter)
+
+### Functional & Specialized
+- Haskell, Clojure, OCaml, Elixir, Erlang, Scala
+
+### Scripting & Configuration
+- Shell, Bash, PowerShell, Perl, Lua, Vim script
+
+### Financial & Trading
+- Pine Script (TradingView indicators/strategies)
+
+*Language detection is automatic based on file extension. Manual specification is also supported.*
+
+## 💡 Usage Examples
+
+### Comprehensive Code Review
+```bash
+claude "Use gemini_code_review with file_path './src/api.js' and context 'REST API endpoint' and focus_areas 'security'"
 ```
 
-### Example Output
-
-```
-=== ITERATION 1 ===
-
-🚗 CLAUDE (DRIVER) - IMPLEMENTING:
-Created RSI+MACD strategy with entry/exit logic
-
-🧭 GEMINI (NAVIGATOR) - REVIEWING:
-Issues found:
-1. MACD signal calculation needs refinement
-2. Add input validation for RSI periods
-3. Consider repainting prevention
-
-=== ITERATION 2 ===
-
-🚗 CLAUDE (DRIVER) - IMPLEMENTING:
-Fixed MACD calculation and added input validation
-
-🧭 GEMINI (NAVIGATOR) - REVIEWING:
-Much improved! Code looks good and follows Pine Script best practices.
-
-✅ GEMINI APPROVAL - Code meets requirements!
+### Code Analysis & Explanation
+```bash
+claude "Use gemini_analyze_code with file_path './algorithm.py' and analysis_type 'optimize'"
 ```
 
-## 🛠️ Configuration
+### Get Improvement Suggestions
+```bash
+claude "Use gemini_suggest_improvements with file_path './component.tsx' and improvement_goals 'performance'"
+```
+
+### Architecture Validation
+```bash
+claude "Use gemini_validate_architecture with file_path './service.go' and validation_focus 'scalability'"
+```
+
+### Review Session Tracking
+```bash
+claude "Use get_review_history"
+```
+
+## 🔧 Configuration
 
 ### Claude CLI MCP Setup
 
-The MCP server integrates with Claude CLI using the `.mcp.json` configuration file:
+The MCP server integrates with Claude CLI using project-level configuration:
 
 ```bash
 # Add MCP server to your project
-claude mcp add -s project claude-gemini-pair-programmer npx claude-gemini-mcp
-
-# Alternative: Add with specific Node.js path if needed
-claude mcp add -s project claude-gemini-pair-programmer node ./node_modules/@iamrichardd/claude-gemini-mcp-server/server.js
+claude mcp add -s project gemini-code-reviewer npx gemini-code-reviewer
 
 # Initialize and approve MCP servers
 claude init
+# Choose option 1 for persistent approval
 ```
 
 ### Manual Configuration (if needed)
 
-If automatic setup doesn't work, create `.mcp.json` manually:
+Create `.mcp.json` in your project root:
 
 ```json
 {
   "mcpServers": {
-    "claude-gemini-pair-programmer": {
+    "gemini-code-reviewer": {
       "command": "npx",
-      "args": ["claude-gemini-mcp"],
+      "args": ["gemini-code-reviewer"],
       "transport": "stdio"
     }
   }
 }
 ```
 
-### Troubleshooting MCP Setup
+## 🔍 Tool Parameters
 
+### `gemini_code_review`
+- **file_path** (required): Path to source code file
+- **context** (optional): Additional context about the code
+- **focus_areas** (optional): `syntax`, `logic`, `performance`, `best_practices`, `security`, `testing`
+- **language** (optional): Programming language (auto-detected if not specified)
+
+### `gemini_analyze_code`
+- **file_path** (required): Path to source code file
+- **analysis_type** (optional): `explain`, `optimize`, `debug`, `refactor`, `compare`
+- **language** (optional): Programming language (auto-detected)
+
+### `gemini_suggest_improvements`
+- **file_path** (required): Path to source code file
+- **improvement_goals** (optional): `performance`, `readability`, `maintainability`, `scalability`, `security`
+- **language** (optional): Programming language (auto-detected)
+
+### `gemini_validate_architecture`
+- **file_path** (required): Path to source code file or directory
+- **validation_focus** (optional): `architecture`, `design_patterns`, `scalability`, `testability`, `maintainability`
+- **language** (optional): Programming language (auto-detected)
+
+## 🛠️ Development Workflow
+
+### Recommended Usage Pattern
+
+1. **Implement** your code using Claude Code CLI directly
+2. **Review** using `gemini_code_review` for comprehensive feedback
+3. **Analyze** complex sections with `gemini_analyze_code`
+4. **Improve** based on `gemini_suggest_improvements` recommendations
+5. **Validate** overall architecture with `gemini_validate_architecture`
+6. **Track** progress with `get_review_history`
+
+### Integration with IDEs
+
+Works seamlessly with:
+- **Claude Code CLI** (primary integration)
+- **Claude Desktop** (alternative setup)
+- **WebStorm/IntelliJ** (via Claude Code plugin)
+- **VS Code** (via Claude Code integration)
+
+## 🚨 Troubleshooting
+
+### MCP Server Not Found
 ```bash
-# Check MCP server status
-claude mcp list
+# Check installation
+npm list | grep gemini-code-reviewer
 
-# Remove and re-add if needed
-claude mcp remove claude-gemini-pair-programmer
-claude mcp add -s project claude-gemini-pair-programmer npx claude-gemini-mcp
-
-# Test server manually
-npx claude-gemini-mcp
-```
-
-### Project-Specific Setup
-
-```bash
-# In your project directory
-npm init -y
-npm install --save-dev github:iamrichardd/claude-gemini-mcp-server
-
-# Add to package.json scripts:
-{
-  "scripts": {
-    "setup-pair-programming": "npx claude-gemini-mcp install-config",
-    "start-mcp": "npx claude-gemini-mcp"
-  }
-}
-```
-
-## 📁 Project Structure
-
-```
-your-project/
-├── node_modules/
-│   └── @iamrichardd/claude-gemini-mcp-server/
-├── package.json
-└── README.md
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**MCP Server Not Found**
-```bash
-# Check if properly installed
-npm list | grep claude-gemini-mcp-server
-
-# Reinstall configuration
-claude mcp add -s project claude-gemini-pair-programmer npx claude-gemini-mcp
+# Reinstall if needed
+npm install --save-dev github:iamrichardd/gemini-code-reviewer
+claude mcp add -s project gemini-code-reviewer npx gemini-code-reviewer
 claude init
 ```
 
-**Claude CLI Not Found**
+### Gemini CLI Issues
 ```bash
-# Verify Claude CLI installation
-claude --version
+# Test Gemini CLI directly
+gemini -p "test prompt"
 
-# Check PATH
-echo $PATH | grep claude
-```
-
-**MCP Server Failed to Start**
-```bash
-# Test server manually
-npx claude-gemini-mcp
-
-# Check for dependency issues
-npm install @modelcontextprotocol/sdk
-```
-
-**CLI Tools Hanging or Timing Out**
-```bash
-# Test CLI tools with non-interactive flags
-claude -p "Test prompt"
-gemini -p "Test prompt"
-
-# Test with environment isolation (if running from within Claude)
-env -i PATH="$PATH" HOME="$HOME" claude -p "Test prompt"
-env -i PATH="$PATH" HOME="$HOME" gemini -p "Test prompt"
-
-# Both should return responses and exit cleanly
-```
-
-**Pair Programming Cycle Gets Cancelled**
-```bash
-# Ensure both CLI tools work non-interactively
-claude -p "What is Pine Script?"
-gemini -p "What is Pine Script?"
-
-# If running from within Claude CLI, test with environment isolation
-env -i PATH="$PATH" HOME="$PATH" claude -p "What is Pine Script?"
-
-# Check MCP server logs for hanging processes
-ps aux | grep -E "(claude-gemini-mcp|claude|gemini)"
-```
-
-**Subprocess Detection Issues**
-```bash
-# Claude CLI may detect recursive execution and hang
-# The MCP server uses environment isolation to prevent this:
-# env -i PATH="..." HOME="..." claude -p "prompt"
-
-# If issues persist, verify the isolation commands work manually
-env -i PATH="$PATH" HOME="$HOME" claude -p "test"
-```
-
-**Gemini CLI Not Found**
-```bash
-# Verify Gemini CLI installation
+# Verify authentication and availability
 gemini --version
 
-# Check configuration
-gemini config list
+# Check if Gemini CLI is in PATH
+which gemini
+```
+
+### Permission Issues
+```bash
+# Ensure MCP server is approved
+claude init
+# Choose option 1: "Use this and all future MCP servers in this project"
+
+# Check MCP server status
+claude mcp list
+# Should show: gemini-code-reviewer ✓ connected
+```
+
+### Binary File Errors
+```bash
+# The server automatically detects and rejects binary files
+# Error: "File appears to be binary, not a text-based source code file"
+# Solution: Ensure you're pointing to text-based source code files only
+```
+
+### Language Detection Issues
+```bash
+# Manually specify language if auto-detection fails
+claude "Use gemini_code_review with file_path './script' and language 'Python'"
+```
+
+### Server Execution Issues
+```bash
+# Verify server starts correctly
+npx gemini-code-reviewer
+# Should show: "Gemini Code Review MCP Server (Security-Hardened v2.0.6) running on stdio"
+
+# Check file permissions
+chmod +x node_modules/@iamrichardd/gemini-code-reviewer/server.js
+```
+
+### Error Stack Trace Issues
+```bash
+# The server preserves complete error context for debugging
+# Check logs for detailed error information including:
+# - Original error message and stack trace
+# - Operation context (file path, operation type)
+# - Error cause chain for complete debugging context
 ```
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+Contributions welcome! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### Development Setup
+```bash
+git clone https://github.com/iamrichardd/gemini-code-reviewer.git
+cd gemini-code-reviewer
+npm install
+npm run dev
+```
 
 ## 📄 License
 
@@ -273,17 +270,31 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🔗 Related Tools
 
-- [Claude CLI](https://docs.anthropic.com) - AI-powered code assistant
 - [Gemini CLI](https://github.com/google-gemini/gemini-cli) - Google's AI CLI tool
+- [Claude Code CLI](https://docs.anthropic.com) - Anthropic's AI development assistant
 - [Model Context Protocol](https://modelcontextprotocol.io) - Standard for AI tool integration
 
 ## 📊 Use Cases
 
-- **Pine Script Development**: Trading indicators and strategies
-- **Code Review Automation**: Continuous quality improvement
-- **Educational**: Learn XP pair programming with AI
-- **Rapid Prototyping**: Fast iteration with dual AI feedback
+### For Individual Developers
+- **Code Quality Assurance**: Automated reviews before commits
+- **Learning Tool**: Understand complex codebases and patterns
+- **Performance Optimization**: Identify bottlenecks and improvements
+- **Best Practices**: Language-specific recommendations
+
+### For Teams
+- **Code Review Automation**: Pre-review screening and feedback
+- **Architecture Validation**: Ensure design consistency
+- **Onboarding**: Help new team members understand code
+- **Documentation**: Generate explanations for complex logic
+
+### For Specific Domains
+- **Web Development**: Security, performance, accessibility reviews
+- **Backend Systems**: Scalability, reliability, architecture validation
+- **Data Science**: Algorithm optimization, code clarity
+- **Mobile Development**: Platform-specific best practices
+- **Financial/Trading**: Pine Script strategy validation and optimization
 
 ---
 
-Made with ❤️ for the trading and development community
+**Powered by Google Gemini AI** | **Compatible with Claude Code** | **Universal Language Support**

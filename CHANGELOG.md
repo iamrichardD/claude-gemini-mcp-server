@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.0.0] - 2025-07-17
+
+### 🚀 Major Release: Universal Code Review Server
+
+### Added
+- **Universal Language Support**: Auto-detection and support for 30+ programming languages
+- **Language-Specific Analysis**: Tailored prompts and best practices for each language
+- **Architecture Validation Tool**: Comprehensive design pattern and scalability assessment
+- **Session History Tracking**: Review history with language and timestamp information
+- **Intelligent Language Detection**: Automatic detection from file extensions
+- **Enhanced Tool Parameters**: Optional language specification for edge cases
+
+### Changed
+- **BREAKING**: Renamed from `claude-gemini-mcp-server` to `gemini-code-reviewer`
+- **BREAKING**: Simplified architecture - removed Claude CLI subprocess (you're already in Claude CLI)
+- **BREAKING**: Tool name changes:
+  - `claude_code_implement` → Removed (you implement directly in Claude CLI)
+  - `pair_programming_cycle` → Removed (simplified workflow)
+  - `gemini_validate_strategy` → `gemini_validate_architecture` (universal)
+- **Enhanced Prompts**: Language-aware prompts with specific conventions and idioms
+- **Improved Error Handling**: Better error messages and debugging information
+- **Extended Timeouts**: Longer timeouts for complex analysis tasks
+
+### Removed
+- **Claude CLI Subprocess**: Eliminated subprocess execution issues entirely
+- **Pine Script Specificity**: No longer limited to Pine Script development
+- **Complex Pair Programming Logic**: Simplified to focus on code review excellence
+
+### Technical Details
+- Complete rewrite focusing on Gemini CLI as the sole AI provider
+- Cleaner architecture with specialized tools for different review aspects
+- Language detection supports: Web (JS/TS/React), Backend (Python/Java/Go), Mobile (Swift/Kotlin), Data (R/SQL), Functional (Haskell/Clojure), Scripting (Shell/Bash), and many more
+- Maintains excellent Pine Script support while expanding to all languages
+
+### Migration Guide
+- Update package name: `@iamrichardd/gemini-code-reviewer`
+- Update MCP registration: `claude mcp add -s project gemini-code-reviewer npx gemini-code-reviewer`
+- Use new tool names: `gemini_code_review`, `gemini_analyze_code`, `gemini_suggest_improvements`, `gemini_validate_architecture`
+- Implement code directly in Claude CLI, then use MCP server for review
+
 ## [1.0.4] - 2025-07-17
 
 ### Fixed
@@ -10,8 +50,8 @@
 
 ### Changed
 - Command execution now uses environment isolation:
-    - `claude -p "prompt"` → `env -i PATH="..." HOME="..." claude -p "prompt"`
-    - `gemini -p "prompt"` → `env -i PATH="..." HOME="..." gemini -p "prompt"`
+  - `claude -p "prompt"` → `env -i PATH="..." HOME="..." claude -p "prompt"`
+  - `gemini -p "prompt"` → `env -i PATH="..." HOME="..." gemini -p "prompt"`
 - Reduced timeout to 30 seconds since commands now execute immediately
 
 ### Technical Details

@@ -3,19 +3,16 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import fs from 'fs/promises';
+import path from 'path';
 
-// Properly typed exec function
-const execAsync = promisify(exec);
-
-class ClaudeGeminiMCPServer {
+class GeminiCodeReviewServer {
     constructor() {
         this.server = new Server(
             {
-                name: 'claude-gemini-pair-programmer',
-                version: '1.0.0',
+                name: 'gemini-code-reviewer',
+                version: '2.0.6',
             },
             {
                 capabilities: {
@@ -26,84 +23,372 @@ class ClaudeGeminiMCPServer {
 
         this.workingDirectory = process.cwd();
         this.sessionContext = {
-            currentFile: null,
-            lastClaudeOutput: null,
-            lastGeminiFeedback: null,
-            iterationCount: 0
+            lastReview: null,
+            reviewHistory: []
+        };
+
+        this.geminiCLIValidated = false;
+        this.geminiCLIValidationPromise = null;
+
+        this.config = {
+            maxFileSize: 1024 * 1024,
+            maxPromptLength: 50000,
+            commandTimeout: 60000,
+            maxConcurrentRequests: 3,
+            allowedFileExtensions: new Set([
+                '.js', '.ts', '.py', '.java', '.cpp', '.c', '.cs', '.php', '.rb', '.go',
+                '.rs', '.kt', '.swift', '.pine', '.pinescript', '.sh', '.bash', '.ps1',
+                '.sql', '.html', '.css', '.scss', '.sass', '.vue', '.jsx', '.tsx',
+                '.dart', '.r', '.m', '.scala', '.clj', '.hs', '.ml', '.ex', '.erl',
+                '.lua', '.pl', '.vim'
+            ])
         };
 
         this.setupToolHandlers();
+    }
+
+    validateFilePath(filePath) {
+        if (!filePath || typeof filePath !== 'string') {
+            throw new Error('Invalid file path: must be a non-empty string');
+        }
+
+        let resolvedPath;
+        if (path.isAbsolute(filePath)) {
+            resolvedPath = path.normalize(filePath);
+        } else {
+            resolvedPath = path.resolve(this.workingDirectory, filePath);
+        }
+
+        if (!path.isAbsolute(filePath) && !resolvedPath.startsWith(this.workingDirectory)) {
+            throw new Error('Invalid file path: path traversal detected');
+        }
+
+        const ext = path.extname(resolvedPath).toLowerCase();
+        if (!this.config.allowedFileExtensions.has(ext)) {
+            throw new Error(`Unsupported file extension: ${ext}`);
+        }
+
+        return resolvedPath;
+    }
+
+    async validateFileAccess(filePath) {
+        try {
+            const stats = await fs.stat(filePath);
+
+            if (!stats.isFile()) {
+                throw new Error('Path is not a file');
+            }
+
+            if (stats.size > this.config.maxFileSize) {
+                throw new Error(`File too large: ${stats.size} bytes (max: ${this.config.maxFileSize})`);
+            }
+
+            await fs.access(filePath, fs.constants.R_OK);
+
+            const buffer = Buffer.alloc(512);
+            const fileHandle = await fs.open(filePath, 'r');
+            try {
+                const { bytesRead } = await fileHandle.read(buffer, 0, 512, 0);
+                const sample = buffer.subarray(0, bytesRead);
+
+                const nullBytes = sample.filter(byte => byte === 0).length;
+                const nonPrintable = sample.filter(byte => byte < 32 && byte !== 9 && byte !== 10 && byte !== 13).length;
+
+                if (nullBytes > 0 || nonPrintable > bytesRead * 0.3) {
+                    throw new Error('File appears to be binary, not a text-based source code file');
+                }
+            } finally {
+                await fileHandle.close();
+            }
+
+            return stats;
+        } catch (error) {
+            if (error.message.includes('File appears to be binary') ||
+                error.message.includes('Path is not a file') ||
+                error.message.includes('File too large')) {
+                throw error;
+            }
+
+            const fileError = new Error(`File access error: ${error.message}`);
+            fileError.cause = error;
+            fileError.code = error.code;
+            throw fileError;
+        }
+    }
+
+    sanitizeInput(input, maxLength = this.config.maxPromptLength) {
+        if (!input || typeof input !== 'string') {
+            return '';
+        }
+
+        if (input.length > maxLength) {
+            throw new Error(`Input too long: ${input.length} characters (max: ${maxLength})`);
+        }
+
+        return input
+            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+            .replace(/\r\n/g, '\n')
+            .trim();
+    }
+
+    async validateGeminiCLI() {
+        if (this.geminiCLIValidated) {
+            return true;
+        }
+
+        if (this.geminiCLIValidationPromise) {
+            return this.geminiCLIValidationPromise;
+        }
+
+        this.geminiCLIValidationPromise = this._performGeminiCLIValidation();
+
+        try {
+            await this.geminiCLIValidationPromise;
+            this.geminiCLIValidated = true;
+            this.geminiCLIValidationPromise = null;
+            return true;
+        } catch (error) {
+            this.geminiCLIValidated = false;
+            this.geminiCLIValidationPromise = null;
+            throw error;
+        }
+    }
+
+    async _performGeminiCLIValidation() {
+        try {
+            const child = spawn('gemini', ['--version'], {
+                stdio: ['pipe', 'pipe', 'pipe'],
+                timeout: 5000
+            });
+
+            return new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    child.kill('SIGTERM');
+                    reject(new Error('Gemini CLI validation timeout'));
+                }, 5000);
+
+                child.on('close', (code) => {
+                    clearTimeout(timeoutId);
+                    if (code === 0) {
+                        resolve(true);
+                    } else {
+                        reject(new Error('Gemini CLI not available or not working'));
+                    }
+                });
+
+                child.on('error', (error) => {
+                    clearTimeout(timeoutId);
+                    reject(new Error(`Gemini CLI not found: ${error.message}`));
+                });
+            });
+        } catch (error) {
+            throw new Error(`Gemini CLI validation failed: ${error.message}`);
+        }
+    }
+
+    async executeGeminiCommand(prompt, timeoutMs = this.config.commandTimeout) {
+        return new Promise((resolve, reject) => {
+            const sanitizedPrompt = this.sanitizeInput(prompt);
+
+            if (!sanitizedPrompt) {
+                reject(new Error('Empty or invalid prompt after sanitization'));
+                return;
+            }
+
+            const child = spawn('gemini', ['-p', sanitizedPrompt], {
+                cwd: this.workingDirectory,
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: {
+                    PATH: process.env.PATH,
+                    HOME: process.env.HOME,
+                    TERM: 'dumb'
+                }
+            });
+
+            let stdout = '';
+            let stderr = '';
+            let processFinished = false;
+            let timeoutTriggered = false;
+
+            const timeoutId = setTimeout(() => {
+                if (!processFinished) {
+                    timeoutTriggered = true;
+                    child.kill('SIGTERM');
+                    reject(new Error(`Command timeout after ${timeoutMs}ms`));
+                }
+            }, timeoutMs);
+
+            child.stdout.on('data', (data) => {
+                stdout += data.toString();
+                if (stdout.length > this.config.maxFileSize * 2) {
+                    if (!processFinished && !timeoutTriggered) {
+                        processFinished = true;
+                        clearTimeout(timeoutId);
+                        child.kill('SIGTERM');
+                        reject(new Error('Output too large, terminating process'));
+                    }
+                }
+            });
+
+            child.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            child.on('close', (code) => {
+                if (processFinished || timeoutTriggered) return;
+
+                processFinished = true;
+                clearTimeout(timeoutId);
+
+                const hasOutput = stdout.trim().length > 0;
+                const isSuccessCode = code === 0;
+
+                if (isSuccessCode) {
+                    resolve({
+                        success: true,
+                        output: stdout.trim(),
+                        error: stderr.trim() || null,
+                        hasOutput
+                    });
+                } else {
+                    reject(new Error(`Gemini CLI failed with exit code ${code}: ${stderr || 'No error message'}`));
+                }
+            });
+
+            child.on('error', (error) => {
+                if (processFinished || timeoutTriggered) return;
+
+                processFinished = true;
+                clearTimeout(timeoutId);
+                reject(new Error(`Failed to start Gemini CLI: ${error.message}`));
+            });
+        });
+    }
+
+    trackOperationResult(operation, filePath, success, error = null, additionalData = {}) {
+        const result = {
+            timestamp: new Date().toISOString(),
+            operation,
+            file: filePath ? (path.relative(this.workingDirectory, filePath) || path.basename(filePath)) : 'unknown',
+            success,
+            ...additionalData
+        };
+
+        if (error) {
+            result.error = error;
+        }
+
+        this.sessionContext.reviewHistory.push(result);
+
+        if (success) {
+            this.sessionContext.lastReview = result;
+        }
+
+        return result;
+    }
+
+    getDisplayPath(filePath) {
+        const relativePath = path.relative(this.workingDirectory, filePath);
+        return relativePath.startsWith('..') ? path.basename(filePath) : relativePath;
+    }
+
+    handleOperationError(operation, filePath, originalError, additionalData = {}) {
+        this.trackOperationResult(operation, filePath, false, originalError.message, additionalData);
+
+        const operationName = operation.replace(/_/g, ' ');
+        const consistentError = new Error(`${operationName} failed: ${originalError.message}`);
+
+        consistentError.cause = originalError;
+        consistentError.stack = originalError.stack;
+        consistentError.code = originalError.code;
+        consistentError.operation = operation;
+        consistentError.filePath = filePath;
+
+        throw consistentError;
+    }
+
+    detectLanguage(filePath, providedLanguage) {
+        if (providedLanguage) {
+            return this.sanitizeInput(providedLanguage, 50);
+        }
+
+        const ext = path.extname(filePath).toLowerCase();
+        const languageMap = {
+            '.js': 'JavaScript', '.ts': 'TypeScript', '.py': 'Python', '.java': 'Java',
+            '.cpp': 'C++', '.c': 'C', '.cs': 'C#', '.php': 'PHP', '.rb': 'Ruby',
+            '.go': 'Go', '.rs': 'Rust', '.kt': 'Kotlin', '.swift': 'Swift',
+            '.pine': 'Pine Script', '.pinescript': 'Pine Script', '.sh': 'Shell Script',
+            '.bash': 'Bash', '.ps1': 'PowerShell', '.sql': 'SQL', '.html': 'HTML',
+            '.css': 'CSS', '.scss': 'SCSS', '.sass': 'Sass', '.vue': 'Vue.js',
+            '.jsx': 'React JSX', '.tsx': 'React TSX', '.dart': 'Dart', '.r': 'R',
+            '.m': 'MATLAB', '.scala': 'Scala', '.clj': 'Clojure', '.hs': 'Haskell',
+            '.ml': 'OCaml', '.ex': 'Elixir', '.erl': 'Erlang', '.lua': 'Lua',
+            '.pl': 'Perl', '.vim': 'Vimscript'
+        };
+
+        return languageMap[ext] || 'Unknown';
     }
 
     setupToolHandlers() {
         this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
             tools: [
                 {
-                    name: 'claude_implement',
-                    description: 'Execute Claude CLI to implement or modify Pine Script code',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {
-                            prompt: {
-                                type: 'string',
-                                description: 'The implementation prompt for Claude CLI'
-                            },
-                            file_path: {
-                                type: 'string',
-                                description: 'Path to the Pine Script file to work on'
-                            }
-                        },
-                        required: ['prompt']
-                    }
-                },
-                {
                     name: 'gemini_code_review',
-                    description: 'Execute Gemini CLI to review and provide feedback on Pine Script code',
+                    description: 'Use Gemini CLI to review code for correctness, best practices, and improvements',
                     inputSchema: {
                         type: 'object',
                         properties: {
-                            file_path: {
-                                type: 'string',
-                                description: 'Path to the Pine Script file to review'
-                            },
-                            context: {
-                                type: 'string',
-                                description: 'Additional context about what was implemented'
-                            }
+                            file_path: { type: 'string', description: 'Path to the source code file to review' },
+                            context: { type: 'string', description: 'Additional context (max 1000 chars)', maxLength: 1000 },
+                            focus_areas: { type: 'string', enum: ['syntax', 'logic', 'performance', 'best_practices', 'security', 'testing', 'general'], default: 'general' },
+                            language: { type: 'string', description: 'Programming language (auto-detected if not specified)', maxLength: 50 }
                         },
                         required: ['file_path']
                     }
                 },
                 {
-                    name: 'pair_programming_cycle',
-                    description: 'Execute a full pair programming cycle: Claude implements, Gemini reviews, iterate',
+                    name: 'gemini_analyze_code',
+                    description: 'Use Gemini CLI to analyze and explain code functionality',
                     inputSchema: {
                         type: 'object',
                         properties: {
-                            initial_prompt: {
-                                type: 'string',
-                                description: 'Initial requirement or problem to solve'
-                            },
-                            file_path: {
-                                type: 'string',
-                                description: 'Path to the Pine Script file'
-                            },
-                            max_iterations: {
-                                type: 'number',
-                                description: 'Maximum number of iterations (default: 3)',
-                                default: 3
-                            }
+                            file_path: { type: 'string', description: 'Path to the source code file to analyze' },
+                            analysis_type: { type: 'string', enum: ['explain', 'optimize', 'debug', 'refactor', 'compare'], default: 'explain' },
+                            language: { type: 'string', description: 'Programming language (auto-detected if not specified)', maxLength: 50 }
                         },
-                        required: ['initial_prompt']  // Only initial_prompt is required
+                        required: ['file_path']
                     }
                 },
                 {
-                    name: 'get_session_context',
-                    description: 'Get current session context and history',
+                    name: 'gemini_suggest_improvements',
+                    description: 'Use Gemini CLI to suggest specific improvements for code',
                     inputSchema: {
                         type: 'object',
-                        properties: {}
+                        properties: {
+                            file_path: { type: 'string', description: 'Path to the source code file' },
+                            improvement_goals: { type: 'string', enum: ['performance', 'readability', 'maintainability', 'scalability', 'security', 'general'], default: 'general' },
+                            language: { type: 'string', description: 'Programming language (auto-detected if not specified)', maxLength: 50 }
+                        },
+                        required: ['file_path']
                     }
+                },
+                {
+                    name: 'gemini_validate_architecture',
+                    description: 'Use Gemini CLI to validate code architecture and design patterns',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            file_path: { type: 'string', description: 'Path to the source code file' },
+                            validation_focus: { type: 'string', enum: ['architecture', 'design_patterns', 'scalability', 'testability', 'maintainability'], default: 'architecture' },
+                            language: { type: 'string', description: 'Programming language (auto-detected if not specified)', maxLength: 50 }
+                        },
+                        required: ['file_path']
+                    }
+                },
+                {
+                    name: 'get_review_history',
+                    description: 'Get the history of operations performed in this session',
+                    inputSchema: { type: 'object', properties: {} }
                 }
             ]
         }));
@@ -113,240 +398,289 @@ class ClaudeGeminiMCPServer {
 
             try {
                 switch (name) {
-                    case 'claude_implement':
-                        return await this.claudeCodeImplement(args.prompt, args.file_path);
-
                     case 'gemini_code_review':
-                        return await this.geminiCodeReview(args.file_path, args.context);
-
-                    case 'pair_programming_cycle':
-                        return await this.pairProgrammingCycle(
-                            args.initial_prompt,
-                            args.file_path,
-                            args.max_iterations || 3
-                        );
-
-                    case 'get_session_context':
-                        return await this.getSessionContext();
-
+                        return await this.geminiCodeReview(args.file_path, args.context, args.focus_areas, args.language);
+                    case 'gemini_analyze_code':
+                        return await this.geminiAnalyzeCode(args.file_path, args.analysis_type, args.language);
+                    case 'gemini_suggest_improvements':
+                        return await this.geminiSuggestImprovements(args.file_path, args.improvement_goals, args.language);
+                    case 'gemini_validate_architecture':
+                        return await this.geminiValidateArchitecture(args.file_path, args.validation_focus, args.language);
+                    case 'get_review_history':
+                        return await this.getReviewHistory();
                     default:
                         throw new Error(`Unknown tool: ${name}`);
                 }
             } catch (error) {
+                console.error(`Tool execution error [${name}]:`, {
+                    message: error.message,
+                    operation: error.operation || name,
+                    filePath: error.filePath || args.file_path,
+                    stack: error.stack,
+                    cause: error.cause?.message
+                });
+
                 return {
-                    content: [
-                        {
-                            type: 'text',
-                            text: `Error: ${error.message}`
-                        }
-                    ]
+                    content: [{ type: 'text', text: `❌ **Error in ${name}**: ${error.message}\n\nPlease check your input parameters and try again.` }],
+                    isError: true
                 };
             }
         });
     }
 
-    async claudeCodeImplement(prompt, filePath) {
+    async geminiCodeReview(filePath, context, focusAreas = 'general', language = null) {
         try {
-            const fullPrompt = filePath ?
-                `${prompt} (working on file: ${filePath})` :
-                prompt;
+            await this.validateGeminiCLI();
 
-            const command = `env -i PATH="${process.env.PATH}" HOME="${process.env.HOME}" claude -p "${fullPrompt}"`;
-            const { stdout, stderr } = await execAsync(command, {
-                cwd: this.workingDirectory,
-                maxBuffer: 1024 * 1024 * 10 // 10MB buffer
-            });
+            const validatedPath = this.validateFilePath(filePath);
+            await this.validateFileAccess(validatedPath);
 
-            this.sessionContext.lastClaudeOutput = stdout;
-            this.sessionContext.currentFile = filePath;
+            const fileContent = await fs.readFile(validatedPath, 'utf-8');
+            const detectedLanguage = this.detectLanguage(validatedPath, language);
+            const sanitizedContext = this.sanitizeInput(context || 'General code review', 1000);
+            const displayPath = this.getDisplayPath(validatedPath);
 
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Claude Code Implementation:\n\n${stdout}${stderr ? `\n\nErrors/Warnings:\n${stderr}` : ''}`
-                    }
-                ]
-            };
-        } catch (error) {
-            throw new Error(`Claude CLI error: ${error.message}`);
-        }
-    }
+            const reviewPrompt = `Perform a comprehensive code review:
 
-    async geminiCodeReview(filePath, context) {
-        try {
-            // Read the file content
-            const fileContent = await fs.readFile(filePath, 'utf-8');
+**File**: ${displayPath}
+**Language**: ${detectedLanguage}
+**Context**: ${sanitizedContext}
+**Focus Areas**: ${focusAreas}
 
-            // Create a comprehensive review prompt
-            const reviewPrompt = `Review this Pine Script code for correctness, best practices, and potential issues:
-
-File: ${filePath}
-Context: ${context || 'Recent implementation by Claude Code CLI'}
-
-Code:
-\`\`\`pinescript
+**Code to Review**:
+\`\`\`${detectedLanguage.toLowerCase()}
 ${fileContent}
 \`\`\`
 
-Please provide:
-1. Code correctness analysis
-2. Pine Script best practices compliance
-3. Potential runtime issues
-4. Performance considerations
-5. Specific suggestions for improvement
+**Review Guidelines**:
+1. **Correctness**: Check for syntax errors, logic issues, and language-specific best practices
+2. **Code Quality**: Evaluate adherence to coding standards and conventions
+3. **Performance**: Identify potential performance issues or optimizations
+4. **Security**: Look for security vulnerabilities and potential exploits
+5. **Maintainability**: Code structure, readability, and documentation
+6. **Testing**: Assess testability and suggest testing strategies
 
-Focus on actionable feedback that can be implemented.`;
+**Please provide**:
+- **Issues Found**: List any problems with severity levels (Critical, High, Medium, Low)
+- **Suggestions**: Specific, actionable improvements
+- **Rating**: Overall code quality score (1-10)
+- **Priority Actions**: Top 3 things to fix first
 
-            const command = `env -i PATH="${process.env.PATH}" HOME="${process.env.HOME}" gemini -p "${reviewPrompt}"`;
-            const { stdout, stderr } = await execAsync(command, {
-                cwd: this.workingDirectory,
-                maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+Focus particularly on: ${focusAreas}`;
+
+            console.error(`Executing Gemini code review for: ${displayPath}`);
+
+            const result = await this.executeGeminiCommand(reviewPrompt);
+
+            this.trackOperationResult('code_review', validatedPath, true, null, {
+                language: detectedLanguage,
+                context: sanitizedContext,
+                focusAreas
             });
 
-            this.sessionContext.lastGeminiFeedback = stdout;
-
             return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `Gemini Code Review:\n\n${stdout}${stderr ? `\n\nErrors/Warnings:\n${stderr}` : ''}`
-                    }
-                ]
+                content: [{
+                    type: 'text',
+                    text: `🧭 **Gemini Code Review - ${displayPath} (${detectedLanguage})**\n\n${result.output}${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
+                }]
             };
         } catch (error) {
-            throw new Error(`Gemini CLI error: ${error.message}`);
+            this.handleOperationError('code_review', filePath, error, {
+                language: language || 'unknown',
+                context: context || 'none',
+                focusAreas: focusAreas || 'general'
+            });
         }
     }
 
-    async pairProgrammingCycle(initialPrompt, filePath, maxIterations) {
-        let results = [];
-        let currentPrompt = initialPrompt;
+    async geminiAnalyzeCode(filePath, analysisType = 'explain', language = null) {
+        try {
+            await this.validateGeminiCLI();
 
-        this.sessionContext.iterationCount = 0;
-        this.sessionContext.currentFile = filePath;
+            const validatedPath = this.validateFilePath(filePath);
+            await this.validateFileAccess(validatedPath);
 
-        // If no file path provided, this is a general question
-        if (!filePath) {
-            results.push("=== GENERAL INQUIRY (NO FILE SPECIFIED) ===");
-            results.push("\n🤔 CLAUDE - RESPONDING TO GENERAL QUESTION:");
+            const fileContent = await fs.readFile(validatedPath, 'utf-8');
+            const detectedLanguage = this.detectLanguage(validatedPath, language);
+            const displayPath = this.getDisplayPath(validatedPath);
 
-            try {
-                const claudeResult = await this.claudeCodeImplement(currentPrompt, null);
-                results.push(claudeResult.content[0].text);
+            const analysisPrompts = {
+                explain: `Explain what this ${detectedLanguage} code does, how it works, and its purpose:`,
+                optimize: `Analyze this ${detectedLanguage} code for optimization opportunities:`,
+                debug: `Help debug this ${detectedLanguage} code by identifying potential issues:`,
+                refactor: `Suggest refactoring improvements for this ${detectedLanguage} code:`,
+                compare: `Analyze this ${detectedLanguage} code and suggest alternative approaches:`
+            };
 
-                results.push("\n🧭 GEMINI - PROVIDING ADDITIONAL PERSPECTIVE:");
-                const geminiPrompt = `Provide additional insights or corrections to this response about: ${initialPrompt}
+            const prompt = `${analysisPrompts[analysisType] || analysisPrompts.explain}
 
-Claude's response:
-${this.sessionContext.lastClaudeOutput}
+**File**: ${displayPath}
+**Language**: ${detectedLanguage}
 
-Please add any missing information, corrections, or alternative perspectives.`;
+**Code**:
+\`\`\`${detectedLanguage.toLowerCase()}
+${fileContent}
+\`\`\`
 
-                const command = `env -i PATH="${process.env.PATH}" HOME="${process.env.HOME}" gemini -p "${geminiPrompt}"`;
-                let result;
-                try {
-                    result = await execAsync(command, {
-                        cwd: this.workingDirectory,
-                        maxBuffer: 1024 * 1024 * 10,
-                        timeout: 120000
-                    });
-                } catch (execError) {
-                    const stdout = execError.stdout || '';
-                    const stderr = execError.stderr || execError.message;
-                    result = { stdout, stderr };
-                }
+Provide a detailed analysis focusing on the ${analysisType} aspect.`;
 
-                results.push(`Gemini Additional Insights:\n\n${result.stdout}${result.stderr ? `\n\nErrors/Warnings:\n${result.stderr}` : ''}`);
+            console.error(`Executing Gemini code analysis (${analysisType}) for: ${displayPath}`);
 
-            } catch (error) {
-                results.push(`Error during general inquiry: ${error.message}`);
-            }
+            const result = await this.executeGeminiCommand(prompt);
+
+            this.trackOperationResult('code_analysis', validatedPath, true, null, {
+                language: detectedLanguage,
+                analysisType
+            });
 
             return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `General Inquiry Complete:\n${results.join('\n')}`
-                    }
-                ]
-            };
-        }
-
-        // Original file-based pair programming logic continues here...
-        for (let i = 0; i < maxIterations; i++) {
-            this.sessionContext.iterationCount = i + 1;
-
-            results.push(`\n=== ITERATION ${i + 1} ===`);
-
-            // Step 1: Claude implements
-            results.push("\n🚗 CLAUDE (DRIVER) - IMPLEMENTING:");
-            try {
-                const claudeResult = await this.claudeCodeImplement(currentPrompt, filePath);
-                results.push(claudeResult.content[0].text);
-            } catch (error) {
-                results.push(`Claude implementation failed: ${error.message}`);
-                break;
-            }
-
-            // Step 2: Gemini reviews
-            results.push("\n🧭 GEMINI (NAVIGATOR) - REVIEWING:");
-            try {
-                const geminiResult = await this.geminiCodeReview(filePath, currentPrompt);
-                results.push(geminiResult.content[0].text);
-
-                // Check if Gemini suggests the code is good enough
-                if (geminiResult.content[0].text.toLowerCase().includes('looks good') ||
-                    geminiResult.content[0].text.toLowerCase().includes('no issues')) {
-                    results.push("\n✅ GEMINI APPROVAL - Code meets requirements!");
-                    break;
-                }
-
-                // Prepare next iteration prompt based on Gemini's feedback
-                currentPrompt = `Based on this feedback from code review, please improve the Pine Script code:
-
-${this.sessionContext.lastGeminiFeedback}
-
-Original requirement: ${initialPrompt}`;
-
-            } catch (error) {
-                results.push(`Gemini review failed: ${error.message}`);
-                break;
-            }
-        }
-
-        return {
-            content: [
-                {
+                content: [{
                     type: 'text',
-                    text: `Pair Programming Session Complete:\n${results.join('\n')}`
-                }
-            ]
-        };
+                    text: `🔍 **Gemini Code Analysis (${analysisType}) - ${displayPath} (${detectedLanguage})**\n\n${result.output}${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
+                }]
+            };
+        } catch (error) {
+            this.handleOperationError('code_analysis', filePath, error, {
+                language: language || 'unknown',
+                analysisType
+            });
+        }
     }
 
-    async getSessionContext() {
-        return {
-            content: [
-                {
+    async geminiSuggestImprovements(filePath, improvementGoals = 'general', language = null) {
+        try {
+            await this.validateGeminiCLI();
+
+            const validatedPath = this.validateFilePath(filePath);
+            await this.validateFileAccess(validatedPath);
+
+            const fileContent = await fs.readFile(validatedPath, 'utf-8');
+            const detectedLanguage = this.detectLanguage(validatedPath, language);
+            const displayPath = this.getDisplayPath(validatedPath);
+
+            const prompt = `Suggest specific improvements for this ${detectedLanguage} code:
+
+**File**: ${displayPath}
+**Language**: ${detectedLanguage}
+**Improvement Goals**: ${improvementGoals}
+
+**Current Code**:
+\`\`\`${detectedLanguage.toLowerCase()}
+${fileContent}
+\`\`\`
+
+**Please provide**:
+1. **Specific Improvements**: Concrete changes to make
+2. **Code Examples**: Show improved versions of problematic sections
+3. **Rationale**: Explain why each improvement matters
+4. **Implementation Steps**: How to apply the changes
+5. **Language-Specific Best Practices**: ${detectedLanguage} conventions and idioms
+
+Focus on: ${improvementGoals}`;
+
+            console.error(`Executing Gemini improvement suggestions for: ${displayPath}`);
+
+            const result = await this.executeGeminiCommand(prompt);
+
+            this.trackOperationResult('suggest_improvements', validatedPath, true, null, {
+                language: detectedLanguage,
+                improvementGoals
+            });
+
+            return {
+                content: [{
                     type: 'text',
-                    text: `Current Session Context:
-- Working Directory: ${this.workingDirectory}
-- Current File: ${this.sessionContext.currentFile || 'None'}
-- Iteration Count: ${this.sessionContext.iterationCount}
-- Last Claude Output: ${this.sessionContext.lastClaudeOutput ? 'Available' : 'None'}
-- Last Gemini Feedback: ${this.sessionContext.lastGeminiFeedback ? 'Available' : 'None'}`
-                }
-            ]
+                    text: `💡 **Gemini Improvement Suggestions - ${displayPath} (${detectedLanguage})**\n\n${result.output}${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
+                }]
+            };
+        } catch (error) {
+            this.handleOperationError('suggest_improvements', filePath, error, {
+                language: language || 'unknown',
+                improvementGoals
+            });
+        }
+    }
+
+    async geminiValidateArchitecture(filePath, validationFocus = 'architecture', language = null) {
+        try {
+            await this.validateGeminiCLI();
+
+            const validatedPath = this.validateFilePath(filePath);
+            await this.validateFileAccess(validatedPath);
+
+            const fileContent = await fs.readFile(validatedPath, 'utf-8');
+            const detectedLanguage = this.detectLanguage(validatedPath, language);
+            const displayPath = this.getDisplayPath(validatedPath);
+
+            const prompt = `Validate this ${detectedLanguage} code architecture and design:
+
+**File**: ${displayPath}
+**Language**: ${detectedLanguage}
+**Validation Focus**: ${validationFocus}
+
+**Code**:
+\`\`\`${detectedLanguage.toLowerCase()}
+${fileContent}
+\`\`\`
+
+**Validation Checklist**:
+1. **Architecture**: Is the overall structure sound and scalable?
+2. **Design Patterns**: Are appropriate patterns used correctly?
+3. **Separation of Concerns**: Are responsibilities properly separated?
+4. **SOLID Principles**: Does the code follow SOLID principles?
+5. **Modularity**: Is the code properly modularized and reusable?
+6. **Error Handling**: Is error handling comprehensive and appropriate?
+7. **Documentation**: Is the code well-documented and self-explanatory?
+8. **Testability**: How testable is this code?
+
+Focus particularly on: ${validationFocus}
+
+Provide a comprehensive architectural assessment with recommendations.`;
+
+            console.error(`Executing Gemini architecture validation for: ${displayPath}`);
+
+            const result = await this.executeGeminiCommand(prompt, 90000);
+
+            this.trackOperationResult('validate_architecture', validatedPath, true, null, {
+                language: detectedLanguage,
+                validationFocus
+            });
+
+            return {
+                content: [{
+                    type: 'text',
+                    text: `🏗️ **Gemini Architecture Validation - ${displayPath} (${detectedLanguage})**\n\n${result.output}${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
+                }]
+            };
+        } catch (error) {
+            this.handleOperationError('validate_architecture', filePath, error, {
+                language: language || 'unknown',
+                validationFocus
+            });
+        }
+    }
+
+    async getReviewHistory() {
+        return {
+            content: [{
+                type: 'text',
+                text: `📋 **Review Session History**\n\n**Total Operations**: ${this.sessionContext.reviewHistory.length}\n\n${
+                    this.sessionContext.reviewHistory.length > 0
+                        ? this.sessionContext.reviewHistory.map((entry, index) =>
+                            `**${index + 1}.** ${entry.operation} - ${entry.file} (${entry.language || 'Unknown'}) - ${new Date(entry.timestamp).toLocaleTimeString()} ${entry.success ? '✅' : '❌'}`
+                        ).join('\n')
+                        : 'No operations performed yet in this session.'
+                }\n\n**Last Successful Operation**: ${this.sessionContext.lastReview ? `${this.sessionContext.lastReview.operation} - ${this.sessionContext.lastReview.file} (${this.sessionContext.lastReview.language || 'Unknown'}) ✅` : 'None'}`
+            }]
         };
     }
 
     async run() {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
-        console.error('Claude-Gemini MCP Server running on stdio');
+        console.error('Gemini Code Review MCP Server (Security-Hardened v2.0.6) running on stdio');
     }
 }
 
-const server = new ClaudeGeminiMCPServer();
+const server = new GeminiCodeReviewServer();
 server.run().catch(console.error);
