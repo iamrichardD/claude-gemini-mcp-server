@@ -237,7 +237,7 @@ claude "Use gemini_code_review with file_path './script' and language 'Python'"
 ```bash
 # Verify server starts correctly
 npx gemini-code-reviewer
-# Should show: "Gemini Code Review MCP Server (Security-Hardened v2.0.6) running on stdio"
+# Should show: "Gemini Code Review MCP Server (Security-Hardened v2.0.7) running on stdio"
 
 # Check file permissions
 chmod +x node_modules/@iamrichardd/gemini-code-reviewer/server.js

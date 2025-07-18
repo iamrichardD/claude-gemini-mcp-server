@@ -12,7 +12,7 @@ class GeminiCodeReviewServer {
         this.server = new Server(
             {
                 name: 'gemini-code-reviewer',
-                version: '2.0.6',
+                version: '2.0.7',
             },
             {
                 capabilities: {
@@ -32,7 +32,7 @@ class GeminiCodeReviewServer {
 
         this.config = {
             maxFileSize: 1024 * 1024,
-            maxPromptLength: 50000,
+            maxPromptLength: 100000,
             commandTimeout: 60000,
             maxConcurrentRequests: 3,
             allowedFileExtensions: new Set([

@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.0.7] - 2025-07-18
+
+### Changed
+- Increased the maximum prompt length from 50,000 to 100,000 characters to accommodate larger files for analysis.
+
 ## [2.0.0] - 2025-07-17
 
 ### 🚀 Major Release: Universal Code Review Server

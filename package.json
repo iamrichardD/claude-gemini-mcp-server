@@ -1,6 +1,6 @@
 {
   "name": "@iamrichardd/claude-gemini-mcp-server",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "description": "MCP Server for Claude-Gemini pair programming workflow",
   "main": "server.js",
   "type": "module",
