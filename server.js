@@ -6,13 +6,26 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { spawn } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
+import { createRequire } from 'module';
+
+// Read version from package.json with error handling
+let version;
+try {
+    const require = createRequire(import.meta.url);
+    const { version: packageVersion } = require('./package.json');
+    version = packageVersion;
+} catch (error) {
+    version = '0.0.0-dev';
+    console.warn('Warning: Could not read version from package.json, using fallback version:', version);
+    console.warn('Error details:', error.message);
+}
 
 class GeminiCodeReviewServer {
     constructor() {
         this.server = new Server(
             {
                 name: 'gemini-code-reviewer',
-                version: '2.0.9',
+                version,
             },
             {
                 capabilities: {
@@ -770,7 +783,7 @@ Provide a comprehensive architectural assessment with recommendations.`;
     async run() {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
-        console.error('Gemini Code Review MCP Server (Security-Hardened v2.0.9) running on stdio');
+        console.error(`Gemini Code Review MCP Server (Security-Hardened v${version}) running on stdio`);
     }
 }
 

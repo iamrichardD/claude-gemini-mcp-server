@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.0.10] - 2025-07-19
+
+### 🔧 Enhanced
+- **Dynamic Version Reading**: Server now reads version from package.json automatically
+- **Error Resilience**: Added robust error handling for missing/malformed package.json
+- **Graceful Fallback**: Uses '0.0.0-dev' when package.json is unavailable
+- **Code Quality**: Applied ES6 property shorthand and destructuring patterns
+
+### Technical Details
+- Implemented `createRequire` pattern for ES module compatibility
+- Added try-catch block to prevent startup crashes from version reading failures
+- Consolidated version logic with destructuring: `{ version: packageVersion }`
+- Enhanced startup logging with dynamic version display
+- Eliminates version consistency issues between package.json and server code
+
+### Benefits
+- **Centralized Version Management**: Single source of truth in package.json
+- **Maintenance Simplification**: No manual version updates required in server code
+- **Development Reliability**: Graceful degradation when package.json is missing
+- **Modern JavaScript Patterns**: Clean, readable ES6+ syntax throughout
+
 ## [2.0.9] - 2025-07-19
 
 ### 🔒 Security
