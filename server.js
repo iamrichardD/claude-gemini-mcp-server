@@ -12,7 +12,7 @@ class GeminiCodeReviewServer {
         this.server = new Server(
             {
                 name: 'gemini-code-reviewer',
-                version: '2.0.7',
+                version: '2.0.8',
             },
             {
                 capabilities: {
@@ -307,6 +307,33 @@ class GeminiCodeReviewServer {
         throw consistentError;
     }
 
+    parseActionableSuggestion(responseText) {
+        const oldCodeRegex = /--- OLD_CODE ---\n([\s\S]*?)\n--- END_OLD_CODE ---/;
+        const newCodeRegex = /--- NEW_CODE ---\n([\s\S]*?)\n--- END_NEW_CODE ---/;
+
+        const oldCodeMatch = responseText.match(oldCodeRegex);
+        const newCodeMatch = responseText.match(newCodeRegex);
+
+        if (oldCodeMatch && oldCodeMatch[1] && newCodeMatch && newCodeMatch[1]) {
+            const oldCode = oldCodeMatch[1];
+            const newCode = newCodeMatch[1];
+
+            // Remove the suggestion blocks from the main text to avoid redundancy
+            const explanation = responseText
+                .replace(oldCodeRegex, '')
+                .replace(newCodeRegex, '')
+                .trim();
+
+            return {
+                explanation,
+                oldCode,
+                newCode
+            };
+        }
+
+        return null;
+    }
+
     detectLanguage(filePath, providedLanguage) {
         if (providedLanguage) {
             return this.sanitizeInput(providedLanguage, 50);
@@ -452,30 +479,61 @@ class GeminiCodeReviewServer {
 ${fileContent}
 \`\`\`
 
+**Instructions**:
+Your primary goal is to provide a text-based review. However, if you find a specific, critical issue that can be fixed with a direct code replacement, you MAY provide ONE such suggestion. If you do, you MUST use the following EXACT format.
+
+--- OLD_CODE ---
+// The full, original code block to be replaced.
+--- END_OLD_CODE ---
+
+--- NEW_CODE ---
+// The full, new, improved code block.
+--- END_NEW_CODE ---
+
 **Review Guidelines**:
-1. **Correctness**: Check for syntax errors, logic issues, and language-specific best practices
-2. **Code Quality**: Evaluate adherence to coding standards and conventions
-3. **Performance**: Identify potential performance issues or optimizations
-4. **Security**: Look for security vulnerabilities and potential exploits
-5. **Maintainability**: Code structure, readability, and documentation
-6. **Testing**: Assess testability and suggest testing strategies
-
-**Please provide**:
-- **Issues Found**: List any problems with severity levels (Critical, High, Medium, Low)
-- **Suggestions**: Specific, actionable improvements
-- **Rating**: Overall code quality score (1-10)
-- **Priority Actions**: Top 3 things to fix first
-
-Focus particularly on: ${focusAreas}`;
+1. **Issues Found**: List any problems with severity levels (Critical, High, Medium, Low).
+2. **Suggestions**: Provide specific, actionable improvements. If you provided a code replacement above, explain the rationale for it here.
+3. **Rating**: Give an overall code quality score (1-10).
+4. **Priority Actions**: List the top 3 things to fix first.`;
 
             console.error(`Executing Gemini code review for: ${displayPath}`);
 
             const result = await this.executeGeminiCommand(reviewPrompt);
 
+            const suggestion = this.parseActionableSuggestion(result.output);
+
+            if (suggestion && suggestion.oldCode.trim() && suggestion.newCode.trim()) {
+                this.trackOperationResult('code_review', validatedPath, true, null, {
+                    language: detectedLanguage,
+                    context: sanitizedContext,
+                    focusAreas,
+                    actionable: true
+                });
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: `🧭 **Gemini Code Review - ${displayPath} (${detectedLanguage})**\n\n${suggestion.explanation}${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
+                        },
+                        {
+                            type: 'tool_use',
+                            name: 'replace',
+                            arguments: {
+                                file_path: validatedPath,
+                                old_string: suggestion.oldCode,
+                                new_string: suggestion.newCode
+                            }
+                        }
+                    ]
+                };
+            }
+
             this.trackOperationResult('code_review', validatedPath, true, null, {
                 language: detectedLanguage,
                 context: sanitizedContext,
-                focusAreas
+                focusAreas,
+                actionable: false
             });
 
             return {
@@ -569,22 +627,56 @@ Provide a detailed analysis focusing on the ${analysisType} aspect.`;
 ${fileContent}
 \`\`\`
 
-**Please provide**:
-1. **Specific Improvements**: Concrete changes to make
-2. **Code Examples**: Show improved versions of problematic sections
-3. **Rationale**: Explain why each improvement matters
-4. **Implementation Steps**: How to apply the changes
-5. **Language-Specific Best Practices**: ${detectedLanguage} conventions and idioms
+**Instructions**:
+If you find a section of code to improve, you MUST provide the complete, original code block to be replaced and the complete, new code block to replace it with. Use the following EXACT format. Do not add any other text or explanation inside the code blocks.
 
-Focus on: ${improvementGoals}`;
+--- OLD_CODE ---
+// The full, original code block to be replaced, including all original indentation and newlines.
+--- END_OLD_CODE ---
+
+--- NEW_CODE ---
+// The full, new, improved code block, including all necessary indentation and newlines.
+--- END_NEW_CODE ---
+
+**Rationale**:
+After the code blocks, provide a clear explanation of why the improvement is necessary and what it does. Focus on the specified goals: ${improvementGoals}.`;
 
             console.error(`Executing Gemini improvement suggestions for: ${displayPath}`);
 
             const result = await this.executeGeminiCommand(prompt);
 
+            const suggestion = this.parseActionableSuggestion(result.output);
+
+            if (suggestion && suggestion.oldCode.trim() && suggestion.newCode.trim()) {
+                this.trackOperationResult('suggest_improvements', validatedPath, true, null, {
+                    language: detectedLanguage,
+                    improvementGoals,
+                    actionable: true
+                });
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: `💡 **Gemini Improvement Suggestion - ${displayPath} (${detectedLanguage})**\n\n${suggestion.explanation}${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
+                        },
+                        {
+                            type: 'tool_use',
+                            name: 'replace',
+                            arguments: {
+                                file_path: validatedPath,
+                                old_string: suggestion.oldCode,
+                                new_string: suggestion.newCode
+                            }
+                        }
+                    ]
+                };
+            }
+
             this.trackOperationResult('suggest_improvements', validatedPath, true, null, {
                 language: detectedLanguage,
-                improvementGoals
+                improvementGoals,
+                actionable: false
             });
 
             return {
@@ -678,7 +770,7 @@ Provide a comprehensive architectural assessment with recommendations.`;
     async run() {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
-        console.error('Gemini Code Review MCP Server (Security-Hardened v2.0.6) running on stdio');
+        console.error('Gemini Code Review MCP Server (Security-Hardened v2.0.8) running on stdio');
     }
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "@iamrichardd/claude-gemini-mcp-server",
-  "version": "2.0.7",
-  "description": "MCP Server for Claude-Gemini pair programming workflow",
+  "version": "2.0.8",
+  "description": "MCP Server for Claude-Gemini pair programming with actionable code suggestions",
   "main": "server.js",
   "type": "module",
   "bin": {
@@ -25,10 +25,11 @@
     "claude",
     "gemini",
     "pair-programming",
-    "pinescript",
-    "trading",
-    "indicators",
-    "ai-collaboration"
+    "code-review",
+    "actionable-suggestions",
+    "code-analysis",
+    "ai-collaboration",
+    "automated-fixes"
   ],
   "author": "Richard Delgado <https://github.com/iamrichardD>",
   "license": "MIT",

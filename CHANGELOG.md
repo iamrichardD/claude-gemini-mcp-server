@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.0.8] - 2025-07-19
+
+### ✨ Added
+- **Actionable Suggestions Feature**: Revolutionary new capability that provides direct code replacements you can approve with one click
+- **Structured Response Parsing**: Server now parses Gemini responses for actionable code blocks using `--- OLD_CODE ---` and `--- NEW_CODE ---` markers
+- **Tool Use Proposals**: When actionable suggestions are found, server returns both explanation text AND proposed `replace` tool calls
+- **Seamless User Control**: Every code replacement requires explicit user approval before being applied
+
+### Enhanced
+- **`gemini_code_review`**: Now provides actionable fixes for critical issues alongside traditional text feedback
+- **`gemini_suggest_improvements`**: All improvement suggestions can now be applied as direct code replacements when actionable
+- **Backward Compatibility**: Existing workflows continue unchanged - actionable suggestions are an enhancement, not a replacement
+
+### Technical Details
+- Added `parseActionableSuggestion()` method with regex-based code block extraction
+- Enhanced prompts to instruct Gemini to provide structured, machine-readable output when applicable
+- Modified tool return logic to include `tool_use` objects with `replace` calls when actionable suggestions are detected
+- Operation tracking now includes `actionable: true/false` flag for analytics
+- Fallback behavior ensures traditional text-only responses when no actionable suggestions are found
+
+### Benefits
+- **Faster Implementation**: No manual copy-paste or retyping of suggested improvements
+- **Higher Accuracy**: Exact code replacements with proper formatting and indentation preserved
+- **Enhanced Workflow**: Transforms "read → manually implement" to "review → approve → done"
+- **Complete Context**: Full explanations provided alongside actionable changes
+
 ## [2.0.7] - 2025-07-18
 
 ### Changed
