@@ -12,7 +12,7 @@ class GeminiCodeReviewServer {
         this.server = new Server(
             {
                 name: 'gemini-code-reviewer',
-                version: '2.0.8',
+                version: '2.0.9',
             },
             {
                 capabilities: {
@@ -59,7 +59,7 @@ class GeminiCodeReviewServer {
             resolvedPath = path.resolve(this.workingDirectory, filePath);
         }
 
-        if (!path.isAbsolute(filePath) && !resolvedPath.startsWith(this.workingDirectory)) {
+        if (!resolvedPath.startsWith(this.workingDirectory + path.sep) && resolvedPath !== this.workingDirectory) {
             throw new Error('Invalid file path: path traversal detected');
         }
 
@@ -770,7 +770,7 @@ Provide a comprehensive architectural assessment with recommendations.`;
     async run() {
         const transport = new StdioServerTransport();
         await this.server.connect(transport);
-        console.error('Gemini Code Review MCP Server (Security-Hardened v2.0.8) running on stdio');
+        console.error('Gemini Code Review MCP Server (Security-Hardened v2.0.9) running on stdio');
     }
 }
 

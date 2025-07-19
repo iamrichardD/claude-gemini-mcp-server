@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.0.9] - 2025-07-19
+
+### 🔒 Security
+- **CRITICAL FIX**: Resolved path traversal vulnerability in `validateFilePath()` function
+- **Enhanced Security**: Added robust directory boundary validation with explicit path separator checks
+- **Edge Case Protection**: Prevents similar-named directory attacks (e.g., `/app/project-evil` when working dir is `/app/project`)
+
+### Technical Details
+- Fixed vulnerable conditional that bypassed security checks for absolute paths
+- Implemented strict path validation: `!resolvedPath.startsWith(this.workingDirectory + path.sep) && resolvedPath !== this.workingDirectory`
+- All file operations now strictly enforced within designated working directory
+- Prevents unauthorized access to system files like `/etc/passwd`, `/home/user/.ssh/id_rsa`
+
+### Security Impact
+- **Severity**: Critical vulnerability resolved
+- **Attack Vector**: Path traversal via absolute file paths
+- **Mitigation**: Complete - all file access now properly sandboxed
+
 ## [2.0.8] - 2025-07-19
 
 ### ✨ Added
