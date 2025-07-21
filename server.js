@@ -429,6 +429,18 @@ class GeminiCodeReviewServer {
                     name: 'get_review_history',
                     description: 'Get the history of operations performed in this session',
                     inputSchema: { type: 'object', properties: {} }
+                },
+                {
+                    name: 'gemini_propose_plan',
+                    description: 'Use Gemini CLI to generate a detailed implementation plan for another AI to follow. This tool creates structured, step-by-step plans that can be executed by Claude or other AI assistants.',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {
+                            prompt: { type: 'string', description: 'The high-level user request or task description that needs a plan' },
+                            conversation_history: { type: 'string', description: 'Optional conversation history for iterative refinement of the plan', maxLength: 10000 }
+                        },
+                        required: ['prompt']
+                    }
                 }
             ]
         }));
@@ -448,6 +460,8 @@ class GeminiCodeReviewServer {
                         return await this.geminiValidateArchitecture(args.file_path, args.validation_focus, args.language);
                     case 'get_review_history':
                         return await this.getReviewHistory();
+                    case 'gemini_propose_plan':
+                        return await this.geminiProposePlan(args.prompt, args.conversation_history);
                     default:
                         throw new Error(`Unknown tool: ${name}`);
                 }
@@ -761,6 +775,73 @@ Provide a comprehensive architectural assessment with recommendations.`;
             this.handleOperationError('validate_architecture', filePath, error, {
                 language: language || 'unknown',
                 validationFocus
+            });
+        }
+    }
+
+    async geminiProposePlan(prompt, conversationHistory = null) {
+        try {
+            await this.validateGeminiCLI();
+
+            const sanitizedPrompt = this.sanitizeInput(prompt);
+            const sanitizedHistory = conversationHistory ? this.sanitizeInput(conversationHistory, 10000) : null;
+
+            if (!sanitizedPrompt) {
+                throw new Error('Invalid prompt: must be a non-empty string');
+            }
+
+            const planningPrompt = `You are acting as a planning AI assistant. Your role is to create a detailed, structured, step-by-step implementation plan that another AI (specifically Claude CLI) can follow to execute a user's request.
+
+**IMPORTANT INSTRUCTIONS FOR YOUR ROLE:**
+- You are NOT implementing anything yourself
+- You are creating a plan for another AI to follow
+- Be specific, actionable, and comprehensive
+- Break down complex tasks into clear, manageable steps
+- **Crucially, enclose all file paths, code snippets, and terminal commands in markdown code fences (\`\`\`) for clear parsing.**
+- Consider dependencies between steps
+- Include error handling and testing considerations
+- Format your response as a clear, numbered list of steps
+
+**User Request:**
+${sanitizedPrompt}
+
+${sanitizedHistory ? `**Previous Conversation Context:**
+${sanitizedHistory}
+
+` : ''}**Your Task:**
+Create a comprehensive implementation plan that breaks down the user's request into specific, actionable steps. Each step should be clear enough for another AI to execute without ambiguity. Consider the following aspects:
+
+1. **Analysis Phase**: What needs to be understood first?
+2. **Planning Phase**: What are the major components/steps?
+3. **Implementation Phase**: What specific actions need to be taken?
+4. **Testing Phase**: How should the implementation be verified?
+5. **Finalization Phase**: What cleanup or documentation is needed?
+
+**Output Format:**
+Provide a numbered list of steps, with each step being specific and actionable. Use clear, imperative language (e.g., "Create a new file...", "Modify the function..."). Remember to use markdown fences for code and paths.
+
+Begin your plan now:`;
+
+            console.error('Executing Gemini plan generation');
+
+            const result = await this.executeGeminiCommand(planningPrompt, 90000);
+
+            this.trackOperationResult('gemini_propose_plan', 'plan_generation', true, null, {
+                promptLength: sanitizedPrompt.length,
+                hasHistory: !!sanitizedHistory,
+                historyLength: sanitizedHistory ? sanitizedHistory.length : 0
+            });
+
+            return {
+                content: [{
+                    type: 'text',
+                    text: `🎯 **Gemini Implementation Plan**\n\n${result.output}${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
+                }]
+            };
+        } catch (error) {
+            this.handleOperationError('gemini_propose_plan', 'plan_generation', error, {
+                promptLength: prompt ? prompt.length : 0,
+                hasHistory: !!conversationHistory
             });
         }
     }

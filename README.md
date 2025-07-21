@@ -54,6 +54,7 @@ claude "Use get_review_history"
 | `gemini_analyze_code` | Deep code analysis and explanation | Understanding complex code, optimization |
 | `gemini_suggest_improvements` | Specific improvement recommendations (✨ **with actionable replacements**) | Refactoring, performance, maintainability |
 | `gemini_validate_architecture` | Architecture and design pattern validation | System design, scalability, SOLID principles |
+| `gemini_propose_plan` | Generate structured implementation plans for other AIs to follow | Task planning, workflow design, AI collaboration |
 | `get_review_history` | Session history and review tracking | Project overview, progress tracking |
 
 ## 🌍 Supported Languages
@@ -112,6 +113,12 @@ claude "Use gemini_validate_architecture with file_path './service.go' and valid
 ### Review Session Tracking
 ```bash
 claude "Use get_review_history"
+```
+
+### AI Collaboration Planning
+```bash
+claude "Use gemini_propose_plan with prompt 'Create a user authentication system with JWT tokens'"
+# Get a structured plan that Claude can then execute step by step
 ```
 
 ## ✨ Actionable Suggestions Feature
@@ -237,6 +244,10 @@ Create `.mcp.json` in your project root:
 - **file_path** (required): Path to source code file or directory
 - **validation_focus** (optional): `architecture`, `design_patterns`, `scalability`, `testability`, `maintainability`
 - **language** (optional): Programming language (auto-detected)
+
+### `gemini_propose_plan`
+- **prompt** (required): High-level user request or task description that needs a plan
+- **conversation_history** (optional): Previous conversation context for iterative refinement of the plan
 
 ## 🛠️ Development Workflow
 
