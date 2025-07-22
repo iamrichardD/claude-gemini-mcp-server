@@ -210,12 +210,26 @@ claude init
 
 Create `.mcp.json` in your project root:
 
+**For Production Usage (published package):**
 ```json
 {
   "mcpServers": {
     "gemini-code-reviewer": {
       "command": "npx",
       "args": ["@iamrichardd/claude-gemini-mcp-server"],
+      "transport": "stdio"
+    }
+  }
+}
+```
+
+**For Local Development:**
+```json
+{
+  "mcpServers": {
+    "gemini-code-reviewer": {
+      "command": "node",
+      "args": ["server.js"],
       "transport": "stdio"
     }
   }
@@ -289,6 +303,24 @@ claude mcp add -s project gemini-code-reviewer npx @iamrichardd/claude-gemini-mc
 claude init
 ```
 
+### MCP Server Connection Hanging
+If commands like `claude "Use get_review_history"` hang or timeout:
+
+```bash
+# For local development, use local server instead of npm package
+claude mcp add -s project gemini-code-reviewer node server.js
+claude init
+
+# Verify server starts locally
+node server.js
+# Should show: "Gemini Code Review MCP Server (Security-Hardened v2.1.0) running on stdio"
+
+# Check .mcp.json uses correct configuration
+cat .mcp.json
+# For local dev: should use "command": "node", "args": ["server.js"]
+# For published package: should use "command": "npx", "args": ["@iamrichardd/claude-gemini-mcp-server"]
+```
+
 ### Gemini CLI Issues
 ```bash
 # Test Gemini CLI directly
@@ -353,7 +385,32 @@ Contributions welcome! Please see our [Contributing Guidelines](CONTRIBUTING.md)
 git clone https://github.com/iamrichardd/claude-gemini-mcp-server.git
 cd claude-gemini-mcp-server
 npm install
+
+# Configure MCP server for local development
+claude mcp add -s project gemini-code-reviewer node server.js
+
+# Initialize and approve the MCP server
+claude init
+# Choose option 1: "Use this and all future MCP servers in this project"
+
+# Start development server
 npm run dev
+```
+
+### Local Development Configuration
+
+For local development, use the local server instead of the npm package:
+
+```json
+{
+  "mcpServers": {
+    "gemini-code-reviewer": {
+      "command": "node",
+      "args": ["server.js"],
+      "transport": "stdio"
+    }
+  }
+}
 ```
 
 ## 📄 License

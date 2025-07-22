@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "gemini-code-reviewer": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "server.js"
+      ],
+      "env": {}
+    }
+  }
+}
