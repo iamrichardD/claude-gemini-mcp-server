@@ -25,10 +25,10 @@ This MCP server acts as your AI-powered code reviewer, providing:
 
 ```bash
 # Install as project dependency
-npm install --save-dev github:iamrichardd/gemini-code-reviewer
+npm install --save-dev github:iamrichardd/claude-gemini-mcp-server
 
 # Add MCP server to Claude CLI
-claude mcp add -s project gemini-code-reviewer npx gemini-code-reviewer
+claude mcp add -s project gemini-code-reviewer npx @iamrichardd/claude-gemini-mcp-server
 
 # Initialize and approve the MCP server
 claude init
@@ -199,7 +199,7 @@ The MCP server integrates with Claude CLI using project-level configuration:
 
 ```bash
 # Add MCP server to your project
-claude mcp add -s project gemini-code-reviewer npx gemini-code-reviewer
+claude mcp add -s project gemini-code-reviewer npx @iamrichardd/claude-gemini-mcp-server
 
 # Initialize and approve MCP servers
 claude init
@@ -215,7 +215,7 @@ Create `.mcp.json` in your project root:
   "mcpServers": {
     "gemini-code-reviewer": {
       "command": "npx",
-      "args": ["gemini-code-reviewer"],
+      "args": ["@iamrichardd/claude-gemini-mcp-server"],
       "transport": "stdio"
     }
   }
@@ -281,11 +281,11 @@ Works seamlessly with:
 ### MCP Server Not Found
 ```bash
 # Check installation
-npm list | grep gemini-code-reviewer
+npm list | grep claude-gemini-mcp-server
 
 # Reinstall if needed
-npm install --save-dev github:iamrichardd/gemini-code-reviewer
-claude mcp add -s project gemini-code-reviewer npx gemini-code-reviewer
+npm install --save-dev github:iamrichardd/claude-gemini-mcp-server
+claude mcp add -s project gemini-code-reviewer npx @iamrichardd/claude-gemini-mcp-server
 claude init
 ```
 
@@ -328,11 +328,11 @@ claude "Use gemini_code_review with file_path './script' and language 'Python'"
 ### Server Execution Issues
 ```bash
 # Verify server starts correctly
-npx gemini-code-reviewer
+npx @iamrichardd/claude-gemini-mcp-server
 # Should show: "Gemini Code Review MCP Server (Security-Hardened v2.0.7) running on stdio"
 
 # Check file permissions
-chmod +x node_modules/@iamrichardd/gemini-code-reviewer/server.js
+chmod +x node_modules/@iamrichardd/claude-gemini-mcp-server/server.js
 ```
 
 ### Error Stack Trace Issues
@@ -350,8 +350,8 @@ Contributions welcome! Please see our [Contributing Guidelines](CONTRIBUTING.md)
 
 ### Development Setup
 ```bash
-git clone https://github.com/iamrichardd/gemini-code-reviewer.git
-cd gemini-code-reviewer
+git clone https://github.com/iamrichardd/claude-gemini-mcp-server.git
+cd claude-gemini-mcp-server
 npm install
 npm run dev
 ```
