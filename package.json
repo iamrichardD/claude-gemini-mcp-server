@@ -1,7 +1,7 @@
 {
   "name": "@iamrichardd/claude-gemini-mcp-server",
-  "version": "2.1.0",
-  "description": "MCP Server for Claude-Gemini pair programming with actionable code suggestions",
+  "version": "2.1.1",
+  "description": "MCP Server for Claude-Gemini pair programming with comprehensive code review and analysis",
   "main": "server.js",
   "type": "module",
   "bin": {

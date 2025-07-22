@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.1.1] - 2025-07-22
+
+### 🔧 Fixed
+- **MCP Protocol Compliance**: Resolved Zod validation errors by removing `tool_use` objects from response content arrays
+- **Response Format**: Code suggestions now displayed as markdown-formatted text within text responses instead of separate tool calls
+- **User Experience**: Enhanced formatting with "Rationale:" heading for better readability and structure
+- **Parser Robustness**: Improved `parseActionableSuggestion` function with better edge case handling and validation
+
+### Technical Details
+- Fixed `geminiCodeReview` and `geminiSuggestImprovements` functions to return only `type: 'text'` objects
+- Content arrays now comply with MCP protocol specifications (text, image, audio, resource_link, resource only)
+- Enhanced code suggestion parsing with empty content validation and trimming
+- Added documentation comments explaining MCP compliance rationale for future developers
+
+### Breaking Changes
+- **Actionable suggestions no longer generate tool_use objects** - suggestions are now presented as formatted markdown text
+- Users can manually copy/paste suggested code changes instead of one-click approval
+- Maintains all functionality while ensuring protocol compliance
+
+### Benefits
+- **Full MCP Compliance**: Eliminates protocol validation errors
+- **Improved Reliability**: Robust parsing prevents malformed response issues  
+- **Better Formatting**: Clear separation between explanation and code suggestions
+- **Future-Proof**: Compliant with Model Context Protocol specifications
+
 ## [2.1.0] - 2025-07-21
 
 ### ✨ Added

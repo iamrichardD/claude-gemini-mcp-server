@@ -321,15 +321,25 @@ class GeminiCodeReviewServer {
     }
 
     parseActionableSuggestion(responseText) {
+        // More robust regex patterns that handle edge cases
         const oldCodeRegex = /--- OLD_CODE ---\n([\s\S]*?)\n--- END_OLD_CODE ---/;
         const newCodeRegex = /--- NEW_CODE ---\n([\s\S]*?)\n--- END_NEW_CODE ---/;
 
         const oldCodeMatch = responseText.match(oldCodeRegex);
         const newCodeMatch = responseText.match(newCodeRegex);
 
-        if (oldCodeMatch && oldCodeMatch[1] && newCodeMatch && newCodeMatch[1]) {
-            const oldCode = oldCodeMatch[1];
-            const newCode = newCodeMatch[1];
+        // Validate both matches exist and contain meaningful content
+        if (oldCodeMatch && oldCodeMatch[1] !== undefined && 
+            newCodeMatch && newCodeMatch[1] !== undefined) {
+            
+            // Trim and validate the captured code blocks
+            const oldCode = oldCodeMatch[1].trim();
+            const newCode = newCodeMatch[1].trim();
+            
+            // Ensure both code blocks have actual content (not just whitespace)
+            if (oldCode.length === 0 || newCode.length === 0) {
+                return null;
+            }
 
             // Remove the suggestion blocks from the main text to avoid redundancy
             const explanation = responseText
@@ -482,6 +492,7 @@ class GeminiCodeReviewServer {
         });
     }
 
+    // Returns markdown-formatted text instead of tool_use objects for MCP protocol compliance
     async geminiCodeReview(filePath, context, focusAreas = 'general', language = null) {
         try {
             await this.validateGeminiCLI();
@@ -541,16 +552,7 @@ Your primary goal is to provide a text-based review. However, if you find a spec
                     content: [
                         {
                             type: 'text',
-                            text: `🧭 **Gemini Code Review - ${displayPath} (${detectedLanguage})**\n\n${suggestion.explanation}${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
-                        },
-                        {
-                            type: 'tool_use',
-                            name: 'replace',
-                            arguments: {
-                                file_path: validatedPath,
-                                old_string: suggestion.oldCode,
-                                new_string: suggestion.newCode
-                            }
+                            text: `🧭 **Gemini Code Review - ${displayPath} (${detectedLanguage})**\n\n**Rationale:**\n${suggestion.explanation}\n\n**Suggested Code Change:**\n\nOld Code:\n\`\`\`${detectedLanguage.toLowerCase()}\n${suggestion.oldCode}\n\`\`\`\n\nNew Code:\n\`\`\`${detectedLanguage.toLowerCase()}\n${suggestion.newCode}\n\`\`\`${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
                         }
                     ]
                 };
@@ -632,6 +634,7 @@ Provide a detailed analysis focusing on the ${analysisType} aspect.`;
         }
     }
 
+    // Returns markdown-formatted text instead of tool_use objects for MCP protocol compliance
     async geminiSuggestImprovements(filePath, improvementGoals = 'general', language = null) {
         try {
             await this.validateGeminiCLI();
@@ -685,16 +688,7 @@ After the code blocks, provide a clear explanation of why the improvement is nec
                     content: [
                         {
                             type: 'text',
-                            text: `💡 **Gemini Improvement Suggestion - ${displayPath} (${detectedLanguage})**\n\n${suggestion.explanation}${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
-                        },
-                        {
-                            type: 'tool_use',
-                            name: 'replace',
-                            arguments: {
-                                file_path: validatedPath,
-                                old_string: suggestion.oldCode,
-                                new_string: suggestion.newCode
-                            }
+                            text: `💡 **Gemini Improvement Suggestion - ${displayPath} (${detectedLanguage})**\n\n**Rationale:**\n${suggestion.explanation}\n\n**Suggested Code Change:**\n\nOld Code:\n\`\`\`${detectedLanguage.toLowerCase()}\n${suggestion.oldCode}\n\`\`\`\n\nNew Code:\n\`\`\`${detectedLanguage.toLowerCase()}\n${suggestion.newCode}\n\`\`\`${result.error ? `\n\n⚠️ **Warnings**: ${result.error}` : ''}`
                         }
                     ]
                 };

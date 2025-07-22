@@ -7,10 +7,10 @@ A universal Model Context Protocol (MCP) server that provides AI-powered code re
 This MCP server acts as your AI-powered code reviewer, providing:
 - **Comprehensive Code Reviews** with severity ratings and actionable feedback
 - **Code Analysis & Explanation** for understanding complex logic
-- **Improvement Suggestions** tailored to your specific goals (with **actionable code replacements**)
+- **Improvement Suggestions** tailored to your specific goals with clear code examples
 - **Architecture Validation** for design patterns and scalability
 - **Multi-Language Support** with language-specific best practices
-- **✨ NEW: Actionable Suggestions** - Direct code replacements you can approve with one click
+- **Structured Output** - Clear explanations with formatted code suggestions
 
 ## 🚀 Quick Start
 
@@ -50,9 +50,9 @@ claude "Use get_review_history"
 
 | Tool | Description | Best For |
 |------|-------------|----------|
-| `gemini_code_review` | Comprehensive code review with ratings and priorities (✨ **with actionable fixes**) | Code quality, bug detection, best practices |
+| `gemini_code_review` | Comprehensive code review with ratings and priorities | Code quality, bug detection, best practices |
 | `gemini_analyze_code` | Deep code analysis and explanation | Understanding complex code, optimization |
-| `gemini_suggest_improvements` | Specific improvement recommendations (✨ **with actionable replacements**) | Refactoring, performance, maintainability |
+| `gemini_suggest_improvements` | Specific improvement recommendations with code examples | Refactoring, performance, maintainability |
 | `gemini_validate_architecture` | Architecture and design pattern validation | System design, scalability, SOLID principles |
 | `gemini_propose_plan` | Generate structured implementation plans for other AIs to follow | Task planning, workflow design, AI collaboration |
 | `get_review_history` | Session history and review tracking | Project overview, progress tracking |
@@ -88,10 +88,10 @@ claude "Use get_review_history"
 
 ## 💡 Usage Examples
 
-### Comprehensive Code Review (with Actionable Fixes)
+### Comprehensive Code Review
 ```bash
 claude "Use gemini_code_review with file_path './src/api.js' and context 'REST API endpoint' and focus_areas 'security'"
-# ✨ Critical issues may include actionable fixes that you can apply directly
+# Get detailed security review with specific recommendations
 ```
 
 ### Code Analysis & Explanation
@@ -99,10 +99,10 @@ claude "Use gemini_code_review with file_path './src/api.js' and context 'REST A
 claude "Use gemini_analyze_code with file_path './algorithm.py' and analysis_type 'optimize'"
 ```
 
-### Get Improvement Suggestions (with Actionable Replacements)
+### Get Improvement Suggestions
 ```bash
 claude "Use gemini_suggest_improvements with file_path './component.tsx' and improvement_goals 'performance'"
-# ✨ When actionable suggestions are found, you'll get a proposed code replacement that you can approve with one click
+# Get specific performance improvements with code examples
 ```
 
 ### Architecture Validation
@@ -121,75 +121,46 @@ claude "Use gemini_propose_plan with prompt 'Create a user authentication system
 # Get a structured plan that Claude can then execute step by step
 ```
 
-## ✨ Actionable Suggestions Feature
+## 📝 Code Suggestions Format
 
-### What Are Actionable Suggestions?
+When Gemini identifies specific code improvements, you'll receive:
 
-When Gemini identifies specific code improvements, the server can now provide **direct code replacements** that you can apply with a single approval. This transforms the review process from "read suggestions → manually implement" to "review suggestion → approve replacement → done."
-
-### How It Works
-
-1. **Structured Analysis**: Gemini analyzes your code and identifies specific improvements
-2. **Code Extraction**: The server parses Gemini's response for actionable code blocks
-3. **Replace Proposal**: You receive both the explanation AND a proposed `replace` tool call
-4. **One-Click Apply**: Approve the replacement to automatically update your file
-
-### Example Workflow
-
-```bash
-# Request improvement suggestions
-claude "Use gemini_suggest_improvements with file_path './api.js' and improvement_goals 'performance'"
-```
-
-**Traditional Response (text-only):**
-```
-💡 Gemini Improvement Suggestions - api.js (JavaScript)
-
-Consider using async/await instead of nested callbacks for better readability...
-```
-
-**New Actionable Response:**
+### Structured Response Format
 ```
 💡 Gemini Improvement Suggestion - api.js (JavaScript)
 
+**Rationale:**
 This code uses nested callbacks which can lead to callback hell. Converting to async/await will improve readability and error handling.
 
-[Proposed Replace Tool Call]
-File: ./api.js
-Replace: 
-  getData(callback) {
-    db.query('SELECT * FROM users', (err, result) => {
-      if (err) callback(err);
-      else callback(null, result);
-    });
-  }
-With:
-  async getData() {
-    try {
-      const result = await db.query('SELECT * FROM users');
-      return result;
-    } catch (err) {
-      throw err;
-    }
-  }
+**Suggested Code Change:**
 
-✅ Click to approve this replacement
+Old Code:
+```javascript
+getData(callback) {
+  db.query('SELECT * FROM users', (err, result) => {
+    if (err) callback(err);
+    else callback(null, result);
+  });
+}
 ```
 
-### When Do You Get Actionable Suggestions?
+New Code:
+\`\`\`javascript
+async getData() {
+  try {
+    const result = await db.query('SELECT * FROM users');
+    return result;
+  } catch (err) {
+    throw err;
+  }
+}
+\`\`\`
 
-- **`gemini_code_review`**: For critical issues that have clear, direct fixes
-- **`gemini_suggest_improvements`**: For any improvement that can be implemented as a code replacement
-- **Automatic Detection**: The server automatically determines when suggestions are actionable
-- **Fallback**: If no actionable suggestions are found, you get traditional text-only feedback
-
-### Benefits
-
-- **Faster Implementation**: No manual copy-paste or retyping
-- **Accuracy**: Exact code replacements with proper formatting and indentation
-- **Context Preservation**: Full explanation alongside the actionable change
-- **User Control**: Every replacement requires your explicit approval
-- **Backward Compatible**: Existing workflows continue to work unchanged
+### Features
+- **Clear Explanations**: Detailed rationale for each suggestion
+- **Formatted Code**: Properly highlighted old and new code blocks
+- **Language-Specific**: Tailored to your programming language's conventions
+- **Copy-Paste Ready**: Well-formatted code for easy implementation
 
 ## 🔧 Configuration
 
@@ -246,7 +217,7 @@ Create `.mcp.json` in your project root:
 
 ### `gemini_analyze_code`
 - **file_path** (required): Path to source code file
-- **analysis_type** (optional): `explain`, `optimize`, `debug`, `refactor`, `compare`
+- **Provide an AI prompt for Gemini CLI ** (optional): `explain`, `optimize`, `debug`, `refactor`, `compare`
 - **language** (optional): Programming language (auto-detected)
 
 ### `gemini_suggest_improvements`
@@ -268,18 +239,18 @@ Create `.mcp.json` in your project root:
 ### Recommended Usage Pattern
 
 1. **Implement** your code using Claude Code CLI directly
-2. **Review** using `gemini_code_review` for comprehensive feedback (✨ **apply critical fixes instantly**)
+2. **Review** using `gemini_code_review` for comprehensive feedback with specific recommendations
 3. **Analyze** complex sections with `gemini_analyze_code`
-4. **Improve** based on `gemini_suggest_improvements` recommendations (✨ **approve replacements with one click**)
+4. **Improve** based on `gemini_suggest_improvements` recommendations with clear code examples
 5. **Validate** overall architecture with `gemini_validate_architecture`
 6. **Track** progress with `get_review_history`
 
-### ✨ New Workflow with Actionable Suggestions
+### Standard Workflow
 
-1. **Request Review/Suggestions** → Server analyzes code
-2. **Receive Actionable Proposals** → Get explanation + proposed code replacement
-3. **Review & Approve** → Examine the suggested change
-4. **Auto-Apply** → Code is updated automatically upon approval
+1. **Request Review/Suggestions** → Server analyzes code with Gemini
+2. **Receive Detailed Feedback** → Get explanation with formatted code suggestions
+3. **Review & Implement** → Examine suggestions and manually apply improvements
+4. **Copy/Paste** → Use provided code examples to implement changes
 5. **Iterate** → Continue with next suggestions or move to validation
 
 ### Integration with IDEs
@@ -313,7 +284,7 @@ claude init
 
 # Verify server starts locally
 node server.js
-# Should show: "Gemini Code Review MCP Server (Security-Hardened v2.1.0) running on stdio"
+# Should show: "Gemini Code Review MCP Server (Security-Hardened v2.1.1) running on stdio"
 
 # Check .mcp.json uses correct configuration
 cat .mcp.json
