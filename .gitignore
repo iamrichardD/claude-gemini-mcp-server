@@ -74,3 +74,6 @@ tests/
 local/
 temp/
 tmp/
+
+# Claude local settings
+.claude/settings.local.json

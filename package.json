@@ -39,5 +39,12 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "os": ["linux", "darwin", "win32"]
+  "os": [
+    "linux",
+    "darwin",
+    "win32"
+  ],
+  "devDependencies": {
+    "@iamrichardd/claude-gemini-mcp-server": "github:iamrichardd/claude-gemini-mcp-server"
+  }
 }
