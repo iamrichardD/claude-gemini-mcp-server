@@ -1,5 +1,39 @@
 # Changelog
 
+## [2.1.0] - 2025-07-21
+
+### ✨ Added
+- **AI Collaboration Workflow**: New `gemini_propose_plan` tool enables seamless Gemini-Claude collaboration
+- **Strategic Planning Tool**: Gemini acts as a "planner" creating structured, step-by-step implementation plans for Claude to execute
+- **Iterative Plan Refinement**: Supports conversation history for progressive plan improvement and context retention
+- **Enhanced AI Parsability**: Markdown code fence formatting for file paths, code snippets, and terminal commands
+- **Extended Timeout Support**: 90-second timeout for complex planning operations
+
+### 🔧 Enhanced
+- **Prompt Engineering**: Sophisticated planning prompts that instruct Gemini to create actionable, AI-executable plans
+- **Session Tracking**: Consistent operation naming with `gemini_propose_plan` for improved debugging and analytics
+- **Documentation**: Comprehensive usage examples and parameter documentation for the new workflow
+
+### Technical Details
+- Added `geminiProposePlan()` method with full error handling and session tracking integration
+- Structured planning prompt with 5-phase approach: Analysis, Planning, Implementation, Testing, Finalization
+- Input sanitization for both primary prompt (100k chars) and conversation history (10k chars)
+- Markdown code fence instructions for better AI collaboration and parsing reliability
+- Tool registration with proper input schema validation and required parameter specification
+
+### Benefits
+- **Seamless AI Collaboration**: Enables natural workflow where Gemini creates plans and Claude executes them
+- **Enhanced Reliability**: Structured markdown formatting improves plan parsing and execution accuracy
+- **Workflow Efficiency**: Reduces implementation time through strategic pre-planning and task breakdown
+- **Context Preservation**: Conversation history enables iterative improvement of complex plans
+- **Universal Application**: Works for any development task regardless of programming language or complexity
+
+### Usage Example
+```bash
+claude "Use gemini_propose_plan with prompt 'Create a user authentication system with JWT tokens'"
+# Gemini generates structured plan → Claude executes step-by-step
+```
+
 ## [2.0.10] - 2025-07-19
 
 ### 🔧 Enhanced
