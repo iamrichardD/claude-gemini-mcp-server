@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --inspect server.js",
-    "install-config": "node scripts/install-config.js"
+    "install-config": "node scripts/install-config.js",
+    "postinstall": "rm -f GEMINI.md CLAUDE.md"
   },
   "repository": {
     "type": "git",

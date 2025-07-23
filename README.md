@@ -35,6 +35,9 @@ claude init
 # Choose option 1: "Use this and all future MCP servers in this project"
 ```
 
+**Important Note on Context Files:**
+This package includes `GEMINI.md` and `CLAUDE.md` files that provide context for its own development. To prevent these files from interfering with the context of your project, a `postinstall` script will automatically remove them upon installation. This ensures that the Gemini and Claude CLIs use your project's specific context files, not the ones from this server.
+
 ### Verify Installation
 
 ```bash
